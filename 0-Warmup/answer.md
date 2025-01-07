@@ -14,10 +14,10 @@
 
 
 3. Please provide a link to the repository you are using for this class.
-     https://github.com/sl3882/CS283
+   - This site was built using [GitHub Pages] (https://github.com/sl3882/CS283)
 
 4. Briefly describe what you want to get out of this class.
-     I want to learn C, github, and linux
+    - I want to learn C, github, and linux
 
 5. Briefly describe any concerns you might be having with being successful in this class (if any).
-     None
+   -  None
