@@ -17,10 +17,88 @@ int word_print(char *, int, int);
 int replace_substring(char *, int, int, char *, char *);
 
 // Function to prepare the buffer with user input, removing extra spaces
+// int setup_buff(char *buff, char *user_str, int len)
+// {
+//     if (!buff || !user_str)
+//         return -1;        // Error: Null pointer passed
+//     int user_str_len = 0; // Track user_str length
+//     char *tempSrc = user_str;
+
+//     char *src = user_str;      // Pointer to user input
+//     char *dst = buff;          // Pointer to the destination buffer
+//     int buffer_index = 0;      // Track buffer index
+//     bool in_whitespace = true; // Track whitespace state
+//     while (*tempSrc != '\0')
+//     {
+//         if (*tempSrc == ' ' || *tempSrc == '\t')
+//         {
+//             tempSrc++;
+//         }
+//         else
+//         {
+//             user_str_len++;
+//             tempSrc++;
+//         }
+//     }
+//     if (user_str_len > len)
+//     {
+//         return -1; // Error: Input too large
+//     }
+
+//     // Copy input to buffer, removing extra spaces
+//     while (*src != '\0' && buffer_index < len)
+//     {
+//         if (*src == ' ' || *src == '\t')
+//         { // Check for whitespace
+//             if (!in_whitespace && buffer_index > 0)
+//             {
+//                 *dst = ' '; // Replace multiple spaces with one
+//                 dst++;
+//                 buffer_index++;
+//                 in_whitespace = true;
+//             }
+//         }
+//         else
+//         { // Handle non-whitespace characters
+//             *dst = *src;
+//             dst++;
+//             buffer_index++;
+//             in_whitespace = false;
+//         }
+//         src++;
+//     }
+
+//     // Remove trailing whitespace, if any
+//     if (in_whitespace && buffer_index > 0)
+//     {
+//         dst--;
+//         buffer_index--;
+//     }
+
+//     // Check if the input exceeds buffer size
+//     // if (buffer_index > len)
+//     // {
+//     //     return -1; // Error: Input too large
+//     // }
+
+//     // Fill remaining buffer space with dots
+//     while (buffer_index < len)
+//     {
+//         *dst = '.';
+//         dst++;
+//         buffer_index++;
+//     }
+
+//     return buffer_index; // Return the length of the processed buffer
+// }
+
+
+
+
 int setup_buff(char *buff, char *user_str, int len)
 {
     if (!buff || !user_str)
-        return -1;              // Error: Null pointer passed
+        return -1; // Error: Null pointer passed
 
     char *src = user_str;      // Pointer to user input
     char *dst = buff;          // Pointer to the destination buffer
@@ -28,11 +106,11 @@ int setup_buff(char *buff, char *user_str, int len)
     bool in_whitespace = true; // Track whitespace state
 
     // Copy input to buffer, removing extra spaces
-    while (*src != '\0' && buffer_index < len)
+    while (*src != '\0')
     {
         if (*src == ' ' || *src == '\t')
         { // Check for whitespace
-            if (!in_whitespace && buffer_index > 0)
+            if (!in_whitespace && buffer_index < len)
             {
                 *dst = ' '; // Replace multiple spaces with one
                 dst++;
@@ -42,6 +120,10 @@ int setup_buff(char *buff, char *user_str, int len)
         }
         else
         { // Handle non-whitespace characters
+            if (buffer_index >= len)
+            {
+                return -1; // Error: Input too large
+            }
             *dst = *src;
             dst++;
             buffer_index++;
@@ -57,12 +139,6 @@ int setup_buff(char *buff, char *user_str, int len)
         buffer_index--;
     }
 
-    // Check if the input exceeds buffer size
-    if (buffer_index > len)
-    {
-        return -1; // Error: Input too large
-    }
-
     // Fill remaining buffer space with dots
     while (buffer_index < len)
     {
@@ -73,6 +149,16 @@ int setup_buff(char *buff, char *user_str, int len)
 
     return buffer_index; // Return the length of the processed buffer
 }
+
+
+
+
+
+
+
+
+
+
 
 // Function to print the buffer contents
 void print_buff(char *buff, int len)
@@ -179,7 +265,7 @@ int word_print(char *buff, int len, int str_len)
         }
         ptr++;
     }
-    printf("\nNumber of words returned: %d\n", word_num - 1);
+
     // Print the last word, if any
     if (in_word)
     {
@@ -189,7 +275,7 @@ int word_print(char *buff, int len, int str_len)
             putchar(*word_ptr++);
         printf(" (%d)\n", word_len);
     }
-
+    printf("\nNumber of words returned: %d\n", word_num - 1);
     return 0; // Success
 }
 
