@@ -14,6 +14,7 @@ int setup_buff(char *, char *, int);
 int count_words(char *, int, int);
 int reverse_string(char *, int, int);
 int word_print(char *, int, int);
+int search_replace(char *, int, int, char *, char *);
 
 // Function to prepare the buffer with user input, removing extra spaces
 int setup_buff(char *buff, char *user_str, int len)
@@ -189,6 +190,77 @@ int word_print(char *buff, int len, int str_len)
     return 0; // Success
 }
 
+int search_replace(char *buff, int len, int str_len, char *search, char *replace) {
+    if (!buff || len <= 0 || str_len <= 0 || !search || !replace)
+        return -1; // Validate inputs
+
+    char temp_buffer[BUFFER_SZ]; // Temporary buffer
+    char *src = buff;            // Pointer to traverse the original buffer
+    char *dst = temp_buffer;     // Pointer to write to the temp buffer
+    int temp_len = 0;            // Length of the updated string
+    
+    // Calculate lengths of search and replace strings
+    int search_len = 0, replace_len = 0;
+    char *ptr;
+    for (ptr = search; *ptr != '\0'; ptr++) search_len++;
+    for (ptr = replace; *ptr != '\0'; ptr++) replace_len++;
+
+    // Initialize temp_buffer with dots
+    for (int i = 0; i < len; i++) {
+        temp_buffer[i] = '.';
+    }
+
+    // Traverse the input string
+    while (*src != '\0' && *src != '.' && temp_len < len) {
+        // Check if current position matches the search string
+        char *search_ptr = search;
+        char *src_ptr = src;
+        int match = 1;
+
+        // Compare current position with search string
+        while (*search_ptr != '\0') {
+            if (*src_ptr == '\0' || *src_ptr == '.' || *src_ptr != *search_ptr) {
+                match = 0;
+                break;
+            }
+            search_ptr++;
+            src_ptr++;
+        }
+
+        if (match) {
+            // Check if replacement would cause buffer overflow
+            if (temp_len + replace_len > len) {
+                return -1;
+            }
+            // Copy replacement string
+            ptr = replace;
+            while (*ptr != '\0' && temp_len < len) {
+                *dst = *ptr;
+                ptr++;
+                dst++;
+                temp_len++;
+            }
+            src += search_len;
+        } else {
+            // Copy single character
+            *dst = *src;
+            dst++;
+            src++;
+            temp_len++;
+        }
+    }
+
+    // Copy temp buffer back to original buffer
+    dst = temp_buffer;
+    for (int i = 0; i < len; i++) {
+        buff[i] = temp_buffer[i];
+    }
+
+    return 0;
+}
+
+
+
 int main(int argc, char *argv[])
 {
     char *buff;         // placehoder for the internal buffer
@@ -287,6 +359,17 @@ int main(int argc, char *argv[])
             exit(2);
         }
         break;
+        case 'x':
+            if (argc < 5) {
+                usage(argv[0]);
+                exit(1);
+            }
+            rc = search_replace(buff, BUFFER_SZ, user_str_len, argv[3], argv[4]);
+            if (rc < 0) {
+                printf("Error replacing string, rc = %d\n", rc);
+                exit(2);
+            }
+            break;
 
     default:
         usage(argv[0]);
