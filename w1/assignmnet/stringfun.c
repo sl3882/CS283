@@ -14,85 +14,7 @@ int setup_buff(char *, char *, int);
 int count_words(char *, int, int);
 int reverse_string(char *, int, int);
 int word_print(char *, int, int);
-int replace_substring(char *, int, int, char *, char *);
-
-// Function to prepare the buffer with user input, removing extra spaces
-// int setup_buff(char *buff, char *user_str, int len)
-// {
-//     if (!buff || !user_str)
-//         return -1;        // Error: Null pointer passed
-//     int user_str_len = 0; // Track user_str length
-//     char *tempSrc = user_str;
-
-//     char *src = user_str;      // Pointer to user input
-//     char *dst = buff;          // Pointer to the destination buffer
-//     int buffer_index = 0;      // Track buffer index
-//     bool in_whitespace = true; // Track whitespace state
-//     while (*tempSrc != '\0')
-//     {
-//         if (*tempSrc == ' ' || *tempSrc == '\t')
-//         {
-//             tempSrc++;
-//         }
-//         else
-//         {
-//             user_str_len++;
-//             tempSrc++;
-//         }
-//     }
-//     if (user_str_len > len)
-//     {
-//         return -1; // Error: Input too large
-//     }
-
-//     // Copy input to buffer, removing extra spaces
-//     while (*src != '\0' && buffer_index < len)
-//     {
-//         if (*src == ' ' || *src == '\t')
-//         { // Check for whitespace
-//             if (!in_whitespace && buffer_index > 0)
-//             {
-//                 *dst = ' '; // Replace multiple spaces with one
-//                 dst++;
-//                 buffer_index++;
-//                 in_whitespace = true;
-//             }
-//         }
-//         else
-//         { // Handle non-whitespace characters
-//             *dst = *src;
-//             dst++;
-//             buffer_index++;
-//             in_whitespace = false;
-//         }
-//         src++;
-//     }
-
-//     // Remove trailing whitespace, if any
-//     if (in_whitespace && buffer_index > 0)
-//     {
-//         dst--;
-//         buffer_index--;
-//     }
-
-//     // Check if the input exceeds buffer size
-//     // if (buffer_index > len)
-//     // {
-//     //     return -1; // Error: Input too large
-//     // }
-
-//     // Fill remaining buffer space with dots
-//     while (buffer_index < len)
-//     {
-//         *dst = '.';
-//         dst++;
-//         buffer_index++;
-//     }
-
-//     return buffer_index; // Return the length of the processed buffer
-// }
-
-
+int replace_substring(char *, int, int, char *, char *); 
 
 
 int setup_buff(char *buff, char *user_str, int len)
@@ -149,16 +71,6 @@ int setup_buff(char *buff, char *user_str, int len)
 
     return buffer_index; // Return the length of the processed buffer
 }
-
-
-
-
-
-
-
-
-
-
 
 // Function to print the buffer contents
 void print_buff(char *buff, int len)
