@@ -427,7 +427,7 @@ int main(int argc, char *argv[])
     {
         printf("Error setting up buffer, error = %d", user_str_len);
         free(buff);
-        exit(3);
+        exit(2);
     }
 
     switch (opt)
