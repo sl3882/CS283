@@ -59,7 +59,23 @@ int open_db(char *dbFile, bool should_truncate){
  *  console:  Does not produce any console I/O used by other functions
  */
 int get_student(int fd, int id, student_t *s){
-    return NOT_IMPLEMENTED_YET;
+    if(lseek(fd,0,SEEK_SET)==-1){
+        return ERR_DB_FILE;
+    }
+
+    student_t curr;
+    ssize_t bytes_read;
+
+    while(bytes_read = read(fd,&curr,sizeof(student_t))){
+        if(curr.id == id ){
+            memcpy(s, &curr,sizeof(student_t));
+            return NO_ERROR;
+        }
+    }
+
+    return SRCH_NOT_FOUND;
+
+
 }
 
 /*
@@ -88,8 +104,15 @@ int get_student(int fd, int id, student_t *s){
  *            
  */
 int add_student(int fd, int id, char *fname, char *lname, int gpa){
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    student_t exist;
+    if(get_student(fd,id,&exist)==NO_ERROR){
+        printf(M_ERR_DB_ADD_DUP, id);
+        return ERR_DB_OP;
+    }
+
+   
+
+   
 }
 
 /*
