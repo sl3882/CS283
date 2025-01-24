@@ -109,7 +109,16 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa){
         printf(M_ERR_DB_ADD_DUP, id);
         return ERR_DB_OP;
     }
+    student_t new_student = {.id = id,.gpa = gpa    };
+    strncpy(new_student.fname, fname, sizeof(new_student.fname) - 1);
+    strncpy(new_student.lname, lname, sizeof(new_student.lname) - 1);
+    ssize_t bytes_written = write(fd, &new_student, sizeof(student_t));
+    if (bytes_written != sizeof(student_t)) {
+        return ERR_DB_FILE;
+    }
 
+    printf(M_STD_ADDED, id);
+    return NO_ERROR;
    
 
    
