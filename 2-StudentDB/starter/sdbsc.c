@@ -274,7 +274,7 @@ int print_db(int fd)
         {
             if (!header_printed)
             {
-                printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST NAME", "GPA");
+                printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
                 header_printed = true;
             }
             float real_gpa = student.gpa / 100.0;
