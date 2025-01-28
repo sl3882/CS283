@@ -158,14 +158,15 @@ int del_student(int fd, int id)
         printf(M_STD_NOT_FND_MSG, id);
         return ERR_DB_OP;
     }
-    if (get_student(fd, id, &exist) == NO_ERROR)
+    if (lseek(fd, -sizeof(student_t), SEEK_CUR) == -1)
     {
+        return ERR_DB_FILE;
+    }
+    ssize_t bytes_written = write(fd, &EMPTY_STUDENT_RECORD, sizeof(student_t));
 
-        ssize_t bytes_written = write(fd, &EMPTY_STUDENT_RECORD, sizeof(student_t));
-        if (bytes_written != sizeof(student_t))
-        {
-            return ERR_DB_FILE;
-        }
+    if (bytes_written != sizeof(student_t))
+    {
+        return ERR_DB_FILE;
     }
 
     printf(M_STD_DEL_MSG, id);
@@ -263,13 +264,16 @@ int count_db_records(int fd)
 int print_db(int fd)
 {
     student_t student;
-      bool header_printed = false;
+    bool header_printed = false;
     int records_found = 0;
     ssize_t bytes_read;
 
-    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t)) {
-        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
-            if (!header_printed) {
+    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t))
+    {
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
+        {
+            if (!header_printed)
+            {
                 printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST NAME", "GPA");
                 header_printed = true;
             }
@@ -279,12 +283,14 @@ int print_db(int fd)
         }
     }
 
-    if (bytes_read == -1) {
+    if (bytes_read == -1)
+    {
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     }
 
-    if (records_found == 0) {
+    if (records_found == 0)
+    {
         printf(M_DB_EMPTY);
     }
 
