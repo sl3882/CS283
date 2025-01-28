@@ -263,30 +263,28 @@ int count_db_records(int fd)
 int print_db(int fd)
 {
     student_t student;
+      bool header_printed = false;
+    int records_found = 0;
     ssize_t bytes_read;
-    bool header_printed = false;
 
-    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t))
-    {
-        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
-        {
-            if (!header_printed)
-            {
-                printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
+    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t)) {
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+            if (!header_printed) {
+                printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST NAME", "GPA");
                 header_printed = true;
             }
-            float gpa = student.gpa / 100.0;
-            printf(STUDENT_PRINT_FMT_STRING, student.id, student.fname, student.lname, gpa);
+            float real_gpa = student.gpa / 100.0;
+            printf(STUDENT_PRINT_FMT_STRING, student.id, student.fname, student.lname, real_gpa);
+            records_found++;
         }
     }
 
-    if (bytes_read == -1)
-    {
+    if (bytes_read == -1) {
+        printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     }
 
-    if (!header_printed)
-    {
+    if (records_found == 0) {
         printf(M_DB_EMPTY);
     }
 
