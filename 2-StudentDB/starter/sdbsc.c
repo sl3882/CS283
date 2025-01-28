@@ -153,7 +153,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
 int del_student(int fd, int id)
 {
     student_t exist;
-    if (get_student(fd, id, &exist) == ERR_DB_OP){
+    if (get_student(fd, id, &exist) == SRCH_NOT_FOUND){
         printf(M_STD_NOT_FND_MSG, id);
         return ERR_DB_OP;
     }
