@@ -153,13 +153,14 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
 int del_student(int fd, int id)
 {
     student_t exist;
-    if (get_student(fd, id, &exist) == SRCH_NOT_FOUND){
+    if (get_student(fd, id, &exist) == SRCH_NOT_FOUND)
+    {
         printf(M_STD_NOT_FND_MSG, id);
         return ERR_DB_OP;
     }
     if (get_student(fd, id, &exist) == NO_ERROR)
     {
-       
+
         ssize_t bytes_written = write(fd, &EMPTY_STUDENT_RECORD, sizeof(student_t));
         if (bytes_written != sizeof(student_t))
         {
@@ -200,23 +201,29 @@ int count_db_records(int fd)
     int count = 0;
     student_t student;
     ssize_t bytes_read;
-    
-    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t)) {
-        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+
+    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t))
+    {
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
+        {
             count++;
         }
     }
-    
-    if (bytes_read == -1) {
+
+    if (bytes_read == -1)
+    {
         return ERR_DB_FILE;
     }
-    
-    if (count == 0) {
+
+    if (count == 0)
+    {
         printf(M_DB_EMPTY);
-    } else {
+    }
+    else
+    {
         printf(M_DB_RECORD_CNT, count);
     }
-    
+
     return count;
 }
 
@@ -255,8 +262,35 @@ int count_db_records(int fd)
  */
 int print_db(int fd)
 {
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    student_t student;
+    ssize_t bytes_read;
+    bool header_printed = false;
+
+    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t))
+    {
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
+        {
+            if (!header_printed)
+            {
+                printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
+                header_printed = true;
+            }
+            float gpa = student.gpa / 100.0;
+            printf(STUDENT_PRINT_FMT_STRING, student.id, student.fname, student.lname, gpa);
+        }
+    }
+
+    if (bytes_read == -1)
+    {
+        return ERR_DB_FILE;
+    }
+
+    if (!header_printed)
+    {
+        printf(M_DB_EMPTY);
+    }
+
+    return NO_ERROR;
 }
 
 /*
