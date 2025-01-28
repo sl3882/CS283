@@ -155,6 +155,9 @@ int del_student(int fd, int id)
     student_t exist;
     if (get_student(fd, id, &exist) == NO_ERROR)
     {
+        if (lseek(fd, -sizeof(student_t), SEEK_CUR) == -1) {
+            return ERR_DB_FILE;
+        }
         ssize_t bytes_written = write(fd, &EMPTY_STUDENT_RECORD, sizeof(student_t));
         if (bytes_written != sizeof(student_t))
         {
