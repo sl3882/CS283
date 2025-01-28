@@ -197,8 +197,27 @@ int del_student(int fd, int id)
  */
 int count_db_records(int fd)
 {
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    int count = 0;
+    student_t student;
+    ssize_t bytes_read;
+    
+    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t)) {
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+            count++;
+        }
+    }
+    
+    if (bytes_read == -1) {
+        return ERR_DB_FILE;
+    }
+    
+    if (count == 0) {
+        printf(M_DB_EMPTY);
+    } else {
+        printf(M_DB_RECORD_CNT, count);
+    }
+    
+    return count;
 }
 
 /*
