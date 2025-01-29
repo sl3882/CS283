@@ -158,7 +158,7 @@ int del_student(int fd, int id)
         printf(M_STD_NOT_FND_MSG, id);
         return ERR_DB_OP;
     }
-    if (lseek(fd, -sizeof(student_t), SEEK_CUR) == -1)
+    if (lseek(fd, sizeof(student_t), SEEK_CUR) == -1)
     {
         return ERR_DB_FILE;
     }
@@ -201,9 +201,8 @@ int count_db_records(int fd)
 {
     int count = 0;
     student_t student;
-    ssize_t bytes_read;
-
-    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t))
+    ssize_t bytes_read = read(fd, &student, sizeof(student_t));
+    while (bytes_read == sizeof(student_t))
     {
         if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
         {
@@ -266,9 +265,9 @@ int print_db(int fd)
     student_t student;
     bool header_printed = false;
     int records_found = 0;
-    ssize_t bytes_read;
+    ssize_t bytes_read = read(fd, &student, sizeof(student_t));
 
-    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t))
+    while (bytes_read == sizeof(student_t))
     {
         if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
         {
