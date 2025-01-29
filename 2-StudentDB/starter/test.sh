@@ -211,7 +211,7 @@ setup_file() {
 #}
 
 @test "Delete student 99999 in db" {
-    skip
+    
     run ./sdbsc -d 99999
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 99999 was deleted from database." ] || {
