@@ -158,7 +158,7 @@ int del_student(int fd, int id)
         printf(M_STD_NOT_FND_MSG, id);
         return ERR_DB_OP;
     }
-    if (lseek(fd, sizeof(student_t), SEEK_CUR) == -1)
+    if (lseek(fd, -1 * sizeof(student_t), SEEK_CUR) == -1)
     {
         return ERR_DB_FILE;
     }
