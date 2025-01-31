@@ -138,59 +138,39 @@ int get_student(int fd, int id, student_t *s)
 //     return NO_ERROR;
 // }
 
+
 int add_student(int fd, int id, char *fname, char *lname, int gpa)
 {
-    off_t offset = id * sizeof(student_t);
     student_t exist;
-
-    // Seek to the position and read the existing student record
-    if (lseek(fd, offset, SEEK_SET) == -1)
-    {
-        printf(M_ERR_DB_READ);
-        return ERR_DB_FILE;
-    }
-
-    if (read(fd, &exist, sizeof(student_t)) == -1)
-    {
-        printf(M_ERR_DB_READ);
-        return ERR_DB_FILE;
-    }
-
-    // Check if the space is empty using memcmp
-    if (memcmp(&exist, &(student_t){0}, sizeof(student_t)) != 0)
+    int result = get_student(fd, id, &exist);
+    if (result == NO_ERROR)
     {
         printf(M_ERR_DB_ADD_DUP, id);
         return ERR_DB_OP;
     }
-
-    // Prepare new student record
-    student_t new_student = {.id = id, .gpa = gpa};
     
-    // Copy names with null termination
-    strncpy(new_student.fname, fname, sizeof(new_student.fname) - 1);
-    new_student.fname[sizeof(new_student.fname) - 1] = '\0';
-
-    strncpy(new_student.lname, lname, sizeof(new_student.lname) - 1);
-    new_student.lname[sizeof(new_student.lname) - 1] = '\0';
-
-    // Seek back to the correct position before writing
-    if (lseek(fd, offset, SEEK_SET) == -1)
+    // Calculate the file position based on student ID
+    off_t position = (id - 1) * sizeof(student_t);
+    
+    // Seek to the correct position
+    if (lseek(fd, position, SEEK_SET) == -1)
     {
-        printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     }
-
-    // Write new student record to file
-    if (write(fd, &new_student, sizeof(student_t)) != sizeof(student_t))
+    
+    student_t new_student = {.id = id, .gpa = gpa};
+    strncpy(new_student.fname, fname, sizeof(new_student.fname) - 1);
+    strncpy(new_student.lname, lname, sizeof(new_student.lname) - 1);
+    
+    ssize_t bytes_written = write(fd, &new_student, sizeof(student_t));
+    if (bytes_written != sizeof(student_t))
     {
-        printf(M_ERR_DB_WRITE);
         return ERR_DB_FILE;
     }
 
     printf(M_STD_ADDED, id);
     return NO_ERROR;
 }
-
 
 
 
