@@ -428,7 +428,64 @@ void print_student(student_t *s)
  */
 int compress_db(int fd)
 {
-    printf(M_NOT_IMPL);
+    // Close original file descriptor
+    close(fd);
+
+    // Open temporary file
+    int tmp_fd = open(TMP_DB_FILE, O_RDWR | O_CREAT | O_TRUNC, 
+                      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (tmp_fd == -1) {
+        printf(M_ERR_DB_OPEN);
+        return ERR_DB_FILE;
+    }
+
+    // Reopen original database
+    fd = open(DB_FILE, O_RDONLY);
+    if (fd == -1) {
+        close(tmp_fd);
+        printf(M_ERR_DB_OPEN);
+        return ERR_DB_FILE;
+    }
+
+    student_t student;
+    ssize_t bytes_read;
+    while ((bytes_read = read(fd, &student, sizeof(student_t))) == sizeof(student_t)) {
+        // Copy only non-empty records
+        if (student.id != 0) {
+            if (write(tmp_fd, &student, sizeof(student_t)) != sizeof(student_t)) {
+                close(fd);
+                close(tmp_fd);
+                printf(M_ERR_DB_WRITE);
+                return ERR_DB_FILE;
+            }
+        }
+    }
+
+    if (bytes_read == -1) {
+        close(fd);
+        close(tmp_fd);
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    // Close both files
+    close(fd);
+    close(tmp_fd);
+
+    // Replace original database with compressed version
+    if (rename(TMP_DB_FILE, DB_FILE) == -1) {
+        printf(M_ERR_DB_CREATE);
+        return ERR_DB_FILE;
+    }
+
+    // Reopen the compressed database
+    fd = open(DB_FILE, O_RDWR);
+    if (fd == -1) {
+        printf(M_ERR_DB_OPEN);
+        return ERR_DB_FILE;
+    }
+
+    printf(M_DB_COMPRESSED_OK);
     return fd;
 }
 
