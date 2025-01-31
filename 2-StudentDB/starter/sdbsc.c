@@ -139,39 +139,50 @@ int get_student(int fd, int id, student_t *s)
 // }
 
 
-
 int add_student(int fd, int id, char *fname, char *lname, int gpa)
 {
     student_t exist;
+
     int result = get_student(fd, id, &exist);
     if (result == NO_ERROR)
     {
         printf(M_ERR_DB_ADD_DUP, id);
         return ERR_DB_OP;
     }
-    
-    // Calculate the file position based on student ID
-    off_t position = (id ) * sizeof(student_t);
-    
-    // Seek to the correct position
-    if (lseek(fd, position, SEEK_SET) == -1)
+    else if (result != ERR_DB_OP) // Ensure it's not an actual I/O error
     {
+        printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     }
-    
+
     student_t new_student = {.id = id, .gpa = gpa};
+
+    // Ensure proper null-termination
     strncpy(new_student.fname, fname, sizeof(new_student.fname) - 1);
+    new_student.fname[sizeof(new_student.fname) - 1] = '\0';
+
     strncpy(new_student.lname, lname, sizeof(new_student.lname) - 1);
-    
+    new_student.lname[sizeof(new_student.lname) - 1] = '\0';
+
+    // Seek to the correct position
+    off_t offset = id * sizeof(student_t);
+    if (lseek(fd, offset, SEEK_SET) == -1)
+    {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
     ssize_t bytes_written = write(fd, &new_student, sizeof(student_t));
     if (bytes_written != sizeof(student_t))
     {
+        printf(M_ERR_DB_WRITE);
         return ERR_DB_FILE;
     }
 
     printf(M_STD_ADDED, id);
     return NO_ERROR;
 }
+
 
 
 
