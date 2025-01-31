@@ -327,7 +327,21 @@ int print_db(int fd)
  */
 void print_student(student_t *s)
 {
-    printf(M_NOT_IMPL);
+     // Validate student pointer and ID
+    if (s == NULL || s->id == 0) {
+        printf(M_ERR_STD_PRINT);
+        return;
+    }
+
+    // Print header on first valid record
+    printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
+
+    // Convert integer GPA to float
+    float real_gpa = s->gpa / 100.0;
+
+    // Print student details
+    printf(STUDENT_PRINT_FMT_STRING, s->id, s->fname, s->lname, real_gpa);
+
 }
 
 /*
