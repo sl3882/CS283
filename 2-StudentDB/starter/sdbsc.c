@@ -79,14 +79,17 @@ int get_student(int fd, int id, student_t *s)
     student_t curr;
     ssize_t bytes_read;
 
-    while (bytes_read = read(fd, &curr, sizeof(student_t)))
+    while (bytes_read = read(fd, &curr, sizeof(student_t))>0 )
     {
         if (curr.id == id)
         {
             memcpy(s, &curr, sizeof(student_t));
             return NO_ERROR;
         }
-    }
+    }if (bytes_read == -1)
+{
+    return ERR_DB_FILE;
+}
 
     return SRCH_NOT_FOUND;
 }
