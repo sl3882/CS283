@@ -15,34 +15,34 @@ setup_file() {
 }
 
 @test "Add a student 1 to db" {
-    run ./sdbsc -a 1      john doe 3.45
+    run ./sdbsc -a 1      john doe 345
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 1 added to database." ]
 }
 
 @test "Add more students to db" {
-    run ./sdbsc -a 3      jane  doe  3.90
+    run ./sdbsc -a 3      jane  doe  390
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 3 added to database." ] || {
         echo "Failed Output:  $output"
         return 1
     }
 
-    run ./sdbsc -a 63     jim   doe  2.85
+    run ./sdbsc -a 63     jim   doe  285
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 63 added to database." ] || {
         echo "Failed Output:  $output"
         return 1
     }
 
-    run ./sdbsc -a 64     janet doe  3.10
+    run ./sdbsc -a 64     janet doe  310
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 64 added to database." ] || {
         echo "Failed Output:  $output"
         return 1
     }
 
-    run ./sdbsc -a 99999  big   dude 2.05
+    run ./sdbsc -a 99999  big   dude 205
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 99999 added to database." ] || {
         echo "Failed Output:  $output"
@@ -81,17 +81,6 @@ setup_file() {
     }
 }
 
-#@test "Make sure the file storage is correct at this time" {
-#    run du -h ./student.db
-#   [ "$status" -eq 0 ]
-#    #note du -h puts a tab between the 2 fields need to match on that
-#    [ "$output" = "12K$(echo -e '\t')./student.db" ] || {
-#        echo "Failed Output:  $output"
-#        echo "12K     ./student.db"
-#        return 1
-#    }
-#}
-
 @test "Find student 3 in db" {
     run ./sdbsc -f 3
     
@@ -102,7 +91,7 @@ setup_file() {
     normalized_output=$(echo -n "${lines[1]}" | tr -s '[:space:]' ' ')
 
     # Define the expected output
-    expected_output="3 jane doe 0.03"
+    expected_output="3 jane doe 3.90"
 
     # Compare the normalized output with the expected output
     [ "$normalized_output" = "$expected_output" ] || {
@@ -165,7 +154,7 @@ setup_file() {
     normalized_output=$(echo -n "$output" | tr -s '[:space:]' ' ')
 
     # Define the expected output (normalized)
-    expected_output="ID FIRST NAME LAST_NAME GPA 1 john doe 0.03 3 jane doe 0.03 63 jim doe 0.02 99999 big dude 0.02"
+    expected_output="ID FIRST NAME LAST_NAME GPA 1 john doe 3.45 3 jane doe 3.90 63 jim doe 2.85 99999 big dude 2.05"
 
     # Compare the normalized output
     [ "$normalized_output" = "$expected_output" ] || {
@@ -175,19 +164,6 @@ setup_file() {
     }
 }
 
-#if you implemented the compress db function remove the 
-#skip from the tests below
-
-#@test "Double check storage at this point" {
-#    run du -h ./student.db
-#    [ "$status" -eq 0 ]
-#    #note du -h puts a tab between the 2 fields need to match on that
-#    [ "$output" = "12K$(echo -e '\t')./student.db" ] || {
-#        echo "Failed Output:  $output"
-#        echo "12K     ./student.db"
-#        return 1
-#    }
-#}
 
 @test "Compress db - try 1" {
     skip
@@ -199,19 +175,8 @@ setup_file() {
     }
 }
 
-#@test "One block should be gone" {
-#    run du -h ./student.db
-#    [ "$status" -eq 0 ]
-#    #note du -h puts a tab between the 2 fields need to match on that
-#    [ "$output" = "8.0K$(echo -e '\t')./student.db" ] || {
-#        echo "Failed Output:  $output"
-#        echo "8.0K     ./student.db"
-#        return 1
-#    }
-#}
 
 @test "Delete student 99999 in db" {
-    
     run ./sdbsc -d 99999
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 99999 was deleted from database." ] || {
@@ -221,7 +186,6 @@ setup_file() {
 }
 
 @test "Compress db again - try 2" {
-    skip
     run ./sdbsc -x
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Database successfully compressed!" ] || {
@@ -229,20 +193,3 @@ setup_file() {
         return 1
     }
 }
-
-#@test "Should be down to 1 block" {
-#    run du -h ./student.db
-#    [ "$status" -eq 0 ]
-#    #note du -h puts a tab between the 2 fields need to match on that
-#    [ "$output" = "4.0K$(echo -e '\t')./student.db" ] || {
-#        echo "Failed Output:  $output"
-#        echo "4.0K     ./student.db"
-#        return 1
-#    }
-#}
-
-
-
-
-
-

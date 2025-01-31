@@ -327,7 +327,7 @@ int print_db(int fd)
  */
 void print_student(student_t *s)
 {
-     // Validate student pointer and ID
+    
     if (s == NULL || s->id == 0) {
         printf(M_ERR_STD_PRINT);
         return;
