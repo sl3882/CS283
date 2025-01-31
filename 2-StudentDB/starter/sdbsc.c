@@ -151,7 +151,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     }
     
     // Calculate the file position based on student ID
-    off_t position = (id - 1) * sizeof(student_t);
+    off_t position = (id ) * sizeof(student_t);
     
     // Seek to the correct position
     if (lseek(fd, position, SEEK_SET) == -1)
