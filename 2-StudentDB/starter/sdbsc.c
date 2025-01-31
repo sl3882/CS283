@@ -22,9 +22,6 @@
  *
  */
 
-
-
-
 int open_db(char *dbFile, bool should_truncate)
 {
     // Set permissions: rw-rw----
@@ -51,11 +48,6 @@ int open_db(char *dbFile, bool should_truncate)
     return fd;
 }
 
-
-
-
-
-
 /*
  *  get_student
  *      fd:  linux file descriptor
@@ -79,17 +71,18 @@ int get_student(int fd, int id, student_t *s)
     student_t curr;
     ssize_t bytes_read;
 
-    while (bytes_read = read(fd, &curr, sizeof(student_t))>0 )
+    while (bytes_read = read(fd, &curr, sizeof(student_t)) > 0)
     {
         if (curr.id == id)
         {
             memcpy(s, &curr, sizeof(student_t));
             return NO_ERROR;
         }
-    }if (bytes_read == -1)
-{
-    return ERR_DB_FILE;
-}
+    }
+    if (bytes_read == -1)
+    {
+        return ERR_DB_FILE;
+    }
 
     return SRCH_NOT_FOUND;
 }
@@ -339,8 +332,9 @@ int print_db(int fd)
  */
 void print_student(student_t *s)
 {
-    
-    if (s == NULL || s->id == 0) {
+
+    if (s == NULL || s->id == 0)
+    {
         printf(M_ERR_STD_PRINT);
         return;
     }
@@ -353,7 +347,6 @@ void print_student(student_t *s)
 
     // Print student details
     printf(STUDENT_PRINT_FMT_STRING, s->id, s->fname, s->lname, real_gpa);
-
 }
 
 /*
