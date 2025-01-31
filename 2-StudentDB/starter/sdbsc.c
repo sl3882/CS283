@@ -25,60 +25,35 @@
 
 
 
-// int open_db(char *dbFile, bool should_truncate)
-// {
-//     // Set permissions: rw-rw----
-//     // see sys/stat.h for constants
-//     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-
-//     // open the file if it exists for Read and Write,
-//     // create it if it does not exist
-//     int flags = O_RDWR | O_CREAT;
-
-//     if (should_truncate)
-//         flags += O_TRUNC;
-
-//     // Now open file
-//     int fd = open(dbFile, flags, mode);
-
-//     if (fd == -1)
-//     {
-//         // Handle the error
-//         printf(M_ERR_DB_OPEN);
-//         return ERR_DB_FILE;
-//     }
-
-//     return fd;
-// }
-
-
-
 int open_db(char *dbFile, bool should_truncate)
 {
+    // Set permissions: rw-rw----
+    // see sys/stat.h for constants
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+
+    // open the file if it exists for Read and Write,
+    // create it if it does not exist
     int flags = O_RDWR | O_CREAT;
 
     if (should_truncate)
         flags += O_TRUNC;
 
+    // Now open file
     int fd = open(dbFile, flags, mode);
 
     if (fd == -1)
     {
-        printf(M_ERR_DB_OPEN);
-        return ERR_DB_FILE;
-    }
-
-    // Pre-allocate the file to 64,000,000 bytes (64 MB)
-    if (ftruncate(fd, 64000000) == -1) 
-    {
-        close(fd);
+        // Handle the error
         printf(M_ERR_DB_OPEN);
         return ERR_DB_FILE;
     }
 
     return fd;
 }
+
+
+
+
 
 
 /*
