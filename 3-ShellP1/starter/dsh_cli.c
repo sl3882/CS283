@@ -46,39 +46,59 @@
  */
 int main()
 {
-    char *cmd_buff;
-    int rc = 0;
-    command_list_t clist;
+    char cmd_buff[SH_CMD_MAX];  // Buffer for user input
+    command_list_t clist;       // Structure to store parsed commands
+    int rc;                     // Return code for parsing
 
-   while(1){
-    printf("%s", SH_PROMPT);
-    if (fgets(cmd_buff, ARG_MAX, stdin) == NULL){
-    printf("\n");
-    break;
-    }
-    //remove the trailing \n from cmd_buff
-    cmd_buff[strcspn(cmd_buff,"\n")] = '\0';
-    
-    if(strcmp(*cmd_buff,EXIT_CMD)==0){
-        break;
-    }
-    rc = build_cmd_list(cmd_buff, &clist);
-    if(rc == OK){
-        printf(CMD_OK_HEADER,clist.num);
-        for (int i = 0; i < clist.num; i++)
+    while (1)
+    {
+        // Display shell prompt
+        printf("%s", SH_PROMPT);
+
+        // Read input from user
+        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL)
         {
-            printf("Command %d: %s %s\n", i + 1, clist.commands[i].exe, clist.commands[i].args);
+            printf("\n");
+            break;  // Exit loop if EOF is encountered
         }
-        
-    }
-    else if(rc == WARN_NO_CMDS){
-        printf(CMD_WARN_NO_CMD);
-    }
-    else if (rc == ERR_TOO_MANY_COMMANDS ){
-        printf(CMD_ERR_PIPE_LIMIT,CMD_MAX);
-    }
-    
 
+        // Remove trailing newline character
+        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
+
+        // Check if input is empty
+        if (cmd_buff[0] == '\0')
+        {
+            printf(CMD_WARN_NO_CMD);
+            continue;
+        }
+
+        // If the command is "exit", terminate the shell
+        if (strcmp(cmd_buff, EXIT_CMD) == 0)
+        {
+            break;
+        }
+
+        
+        rc = build_cmd_list(cmd_buff, &clist);
+
+        // Handle parsing errors or print parsed command list
+        if (rc == WARN_NO_CMDS)
+        {
+            printf(CMD_WARN_NO_CMD);
+        }
+        else if (rc == ERR_TOO_MANY_COMMANDS)
+        {
+            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+        }
+        else if (rc == OK)
+        {
+            printf(CMD_OK_HEADER, clist.num);
+            for (int i = 0; i < clist.num; i++)
+            {
+                printf("  Command %d: %s %s\n", i + 1, clist.commands[i].exe, clist.commands[i].args);
+            }
+        }
     }
+
     return 0;
 }
