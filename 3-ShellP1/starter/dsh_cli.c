@@ -44,68 +44,37 @@
  *
  *  See the provided test cases for output expectations.
  */
-int main()
-{
-    char cmd_buff[SH_CMD_MAX];  // Buffer for user input
-    command_list_t clist;       // Structure to store parsed commands
-    int rc;                     // Return code for parsing
+int main() {
+    char cmd_buff[SH_CMD_MAX];
+    command_list_t clist;
+    int rc;
 
     while(1) {
         printf("%s", SH_PROMPT);
-        
-        // Handle input, including EOF (ctrl+D)
         if (fgets(cmd_buff, ARG_MAX, stdin) == NULL) {
             printf("\n");
             break;
         }
-
-        // Remove the trailing \n from cmd_buff
+        
         cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
 
-        // Check for exit command
         if (strcmp(cmd_buff, EXIT_CMD) == 0) {
             exit(0);
         }
 
-        // Handle empty commands
-        if (strlen(cmd_buff) == 0) {
-            printf(CMD_WARN_NO_CMD);
-            continue;
-        }
-
-        // Parse the command and build command list
         rc = build_cmd_list(cmd_buff, &clist);
 
-        // Handle return codes
-        switch(rc) {
-            case OK:
-                printf(CMD_OK_HEADER, clist.num);
-                // Print details for each command in the list
-                for (int i = 0; i < clist.num; i++) {
-                    printf("Command %d: %s\n", i + 1, clist.commands[i].exe);
-                    if (strlen(clist.commands[i].args) > 0) {
-                        printf("  args: %s\n", clist.commands[i].args);
-                    }
+        if (rc == OK) {
+            printf("PARSED COMMAND LINE - TOTAL COMMANDS %d\n", clist.num);
+            for (int i = 0; i < clist.num; i++) {
+                printf("<%d> %s", i + 1, clist.commands[i].exe);
+                if (strlen(clist.commands[i].args) > 0) {
+                    printf("[%s]", clist.commands[i].args);
                 }
-                break;
-
-            case WARN_NO_CMDS:
-                // Warning already printed by build_cmd_list
-                break;
-
-            case ERR_TOO_MANY_COMMANDS:
-                // Error already printed by build_cmd_list
-                break;
-
-            case ERR_CMD_OR_ARGS_TOO_BIG:
-                printf("error: command or arguments too long\n");
-                break;
-
-            default:
-                printf("error: unknown error occurred\n");
-                break;
+                printf("\n");
+            }
         }
     }
-
+    
     return 0;
 }
