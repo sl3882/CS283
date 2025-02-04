@@ -42,10 +42,10 @@ int build_cmd_list(char *cmd_line, command_list_t *clist) {
         return WARN_NO_CMDS;
     }
 
-    // Skip leading spaces in the initial command line
-    while (*cmd_line && isspace((unsigned char)*cmd_line)) {
-        cmd_line++;
-    }
+    // // Skip leading spaces in the initial command line
+    // while (*cmd_line && isspace((unsigned char)*cmd_line)) {
+    //     cmd_line++;
+    // }
 
     if (*cmd_line == '\0') {
         printf(CMD_WARN_NO_CMD);
@@ -71,10 +71,10 @@ int build_cmd_list(char *cmd_line, command_list_t *clist) {
             *pipe = '\0';
         }
 
-        // Skip leading spaces
-        while (*next_cmd && isspace((unsigned char)*next_cmd)) {
-            next_cmd++;
-        }
+        // // Skip leading spaces
+        // while (*next_cmd && isspace((unsigned char)*next_cmd)) {
+        //     next_cmd++;
+        // }
 
         if (*next_cmd) {
             char *space = strchr(next_cmd, SPACE_CHAR);
