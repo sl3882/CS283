@@ -44,37 +44,37 @@
  *
  *  See the provided test cases for output expectations.
  */
-int main() {
-    char cmd_buff[SH_CMD_MAX];
-    command_list_t clist;
-    int rc;
+int main() { 
+    char cmd_buff[SH_CMD_MAX]; 
+    command_list_t clist; 
+    int rc; 
 
-    while(1) {
-        printf("%s", SH_PROMPT);
-        if (fgets(cmd_buff, ARG_MAX, stdin) == NULL) {
-            printf("\n");
-            break;
+    while(1) { 
+        printf("%s", SH_PROMPT); // Print the shell prompt
+        if (fgets(cmd_buff, ARG_MAX, stdin) == NULL) { // Read input from the user
+            printf("\n"); // Print a newline if input is NULL
+            break; 
         }
         
-        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
+        cmd_buff[strcspn(cmd_buff, "\n")] = '\0'; // Remove the newline character from the input
 
-        if (strcmp(cmd_buff, EXIT_CMD) == 0) {
-            exit(0);
+        if (strcmp(cmd_buff, EXIT_CMD) == 0) { // Check if the input is the exit command
+            exit(0); // Exit the program
         }
 
-        rc = build_cmd_list(cmd_buff, &clist);
+        rc = build_cmd_list(cmd_buff, &clist); // Build the command list from the input
 
-        if (rc == OK) {
-            printf("PARSED COMMAND LINE - TOTAL COMMANDS %d\n", clist.num);
-            for (int i = 0; i < clist.num; i++) {
-                printf("<%d> %s", i + 1, clist.commands[i].exe);
-                if (strlen(clist.commands[i].args) > 0) {
-                    printf("[%s]", clist.commands[i].args);
+        if (rc == OK) { // Check if the command list was built successfully
+            printf("PARSED COMMAND LINE - TOTAL COMMANDS %d\n", clist.num); // Print the number of commands
+            for (int i = 0; i < clist.num; i++) { // Loop through each command
+                printf("<%d> %s", i + 1, clist.commands[i].exe); // Print the command number and executable
+                if (strlen(clist.commands[i].args) > 0) { // Check if there are arguments
+                    printf("[%s]", clist.commands[i].args); // Print the arguments
                 }
-                printf("\n");
+                printf("\n"); // Print a newline
             }
         }
     }
     
-    return 0;
+    return 0; // Return 0 to indicate successful execution
 }
