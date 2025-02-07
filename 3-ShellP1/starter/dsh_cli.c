@@ -55,8 +55,9 @@ int main() {
             printf("\n"); // Print a newline if input is NULL
             break; 
         }
-        
-        cmd_buff[strcspn(cmd_buff, "\n")] = '\0'; // Remove the newline character from the input
+        //remove the trailing \n from cmd_buff
+        cmd_buff[strcspn(cmd_buff,"\n")] = '\0';
+       
 
         if (strcmp(cmd_buff, EXIT_CMD) == 0) { // Check if the input is the exit command
             exit(0); // Exit the program
