@@ -46,9 +46,9 @@
  *  See the provided test cases for output expectations.
  */
 int main() { 
-    char cmd_buff[SH_CMD_MAX]; 
-    command_list_t clist; 
-    int rc; 
+    char *cmd_buff = malloc(ARG_MAX * sizeof(char)); // Allocate memory for cmd_buff
+    int rc = 0;
+    command_list_t clist;
 
     while(1) { 
         printf("%s", SH_PROMPT); // Print the shell prompt
@@ -61,6 +61,7 @@ int main() {
        
 
         if (strcmp(cmd_buff, EXIT_CMD) == 0) { // Check if the input is the exit command
+        free(cmd_buff); // Free allocated memory before exiting
             exit(0); // Exit the program
         }
         if(strcmp(cmd_buff,"dragon")==0){
@@ -81,6 +82,6 @@ int main() {
             }
         }
     }
-    
+    free(cmd_buff); 
     return 0; // Return 0 to indicate successful execution
 }
