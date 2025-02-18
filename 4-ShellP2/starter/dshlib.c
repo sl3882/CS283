@@ -53,13 +53,67 @@
  */
 int exec_local_cmd_loop()
 {
-    char *cmd_buff;
+    char cmd_buff[SH_CMD_MAX];
     int rc = 0;
     cmd_buff_t cmd;
 
-    // TODO IMPLEMENT MAIN LOOP
+    // Initialize the command buffer
+    if (alloc_cmd_buff(&cmd) != OK) {
+        fprintf(stderr, "Failed to allocate command buffer\n");
+        return ERR_MEMORY;
+    }
 
-
-
-    return OK;
+    while(1) {
+        printf("%s", SH_PROMPT);
+        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL) {
+            printf("\n");
+            break;
+        }
+        
+        // Remove the trailing \n from cmd_buff
+        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
+        
+        // Check if the command is the exit command
+        if (strcmp(cmd_buff, EXIT_CMD) == 0) {
+            rc = OK_EXIT;
+            break;
+        }
+        
+        // Clear the command buffer for the next command
+        if (clear_cmd_buff(&cmd) != OK) {
+            fprintf(stderr, "Failed to clear command buffer\n");
+            rc = ERR_MEMORY;
+            break;
+        }
+        
+        // Build command buffer from user input
+        rc = build_cmd_buff(cmd_buff, &cmd);
+        
+        if (rc == WARN_NO_CMDS) {
+            printf(CMD_WARN_NO_CMD);
+            continue;
+        } else if (rc == ERR_TOO_MANY_COMMANDS) {
+            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            continue;
+        } else if (rc == ERR_MEMORY) {
+            fprintf(stderr, "Memory allocation error\n");
+            break;
+        } else if (rc != OK) {
+            fprintf(stderr, "Unknown error: %d\n", rc);
+            continue;
+        }
+        
+        // Execute the command
+        rc = exec_cmd(&cmd);
+        
+        // If the built-in command wants us to exit
+        if (rc == OK_EXIT) {
+            break;
+        }
+    }
+    
+    // Free allocated memory
+    free_cmd_buff(&cmd);
+    
+    return rc;
 }
