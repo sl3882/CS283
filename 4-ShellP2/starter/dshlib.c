@@ -208,91 +208,6 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
 //     return OK;
 // }
 
-
-
-
-int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
-{
-    clear_cmd_buff(cmd_buff);
-
-    char *token = strtok(cmd_line, " ");
-    while (token != NULL)
-    {
-        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
-        {
-            return ERR_CMD_OR_ARGS_TOO_BIG;
-        }
-        cmd_buff->argv[cmd_buff->argc] = token;
-        cmd_buff->argc++;
-        token = strtok(NULL, " ");
-    }
-
-    cmd_buff->argv[cmd_buff->argc] = NULL;
-    if (cmd_buff->argc == 0)
-    {
-        return WARN_NO_CMDS;
-    }
-
-    return OK;
-}
-
-int exec_local_cmd_loop()
-{
-    char cmd_line[SH_CMD_MAX];
-    cmd_buff_t cmd_buff;
-
-    if (alloc_cmd_buff(&cmd_buff) != OK)
-    {
-        fprintf(stderr, "Failed to allocate command buffer\n");
-        return ERR_MEMORY;
-    }
-
-    while (1)
-    {
-        printf("%s", SH_PROMPT);
-        if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
-        {
-            printf("\n");
-            break;
-        }
-
-        // Remove the trailing newline
-        cmd_line[strcspn(cmd_line, "\n")] = '\0';
-
-        // Trim leading and trailing spaces and handle quoted strings
-        if (parse_input(cmd_line, &cmd_buff) != OK)
-        {
-            fprintf(stderr, "Failed to parse command\n");
-            continue;
-        }
-
-        // Execute built-in commands
-        Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
-        if (result == BI_EXECUTED)
-        {
-            continue;
-        }
-        else if (result == BI_CMD_EXIT)
-        {
-            break;
-        }
-        else if (result == BI_CMD_DRAGON)
-        {
-            printf("%s", dragon_txt);
-            continue;
-        }
-
-        // Execute external commands
-        if (exec_cmd(&cmd_buff) != OK)
-        {
-            fprintf(stderr, "Failed to execute command\n");
-        }
-    }
-
-    free_cmd_buff(&cmd_buff);
-    return OK;
-}
-
 int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 {
     clear_cmd_buff(cmd_buff);
@@ -380,4 +295,87 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
     cmd_buff->argv[cmd_buff->argc] = NULL;
 
     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+}
+
+
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
+{
+    clear_cmd_buff(cmd_buff);
+
+    char *token = strtok(cmd_line, " ");
+    while (token != NULL)
+    {
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+        {
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+        cmd_buff->argv[cmd_buff->argc] = token;
+        cmd_buff->argc++;
+        token = strtok(NULL, " ");
+    }
+
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+    if (cmd_buff->argc == 0)
+    {
+        return WARN_NO_CMDS;
+    }
+
+    return OK;
+}
+
+int exec_local_cmd_loop()
+{
+    char cmd_line[SH_CMD_MAX];
+    cmd_buff_t cmd_buff;
+
+    if (alloc_cmd_buff(&cmd_buff) != OK)
+    {
+        fprintf(stderr, "Failed to allocate command buffer\n");
+        return ERR_MEMORY;
+    }
+
+    while (1)
+    {
+        printf("%s", SH_PROMPT);
+        if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
+        {
+            printf("\n");
+            break;
+        }
+
+        // Remove the trailing newline
+        cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+        // Trim leading and trailing spaces and handle quoted strings
+        if (parse_input(cmd_line, &cmd_buff) != OK)
+        {
+            fprintf(stderr, "Failed to parse command\n");
+            continue;
+        }
+
+        // Execute built-in commands
+        Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
+        if (result == BI_EXECUTED)
+        {
+            continue;
+        }
+        else if (result == BI_CMD_EXIT)
+        {
+            break;
+        }
+        else if (result == BI_CMD_DRAGON)
+        {
+            printf("%s", dragon_txt);
+            continue;
+        }
+
+        // Execute external commands
+        if (exec_cmd(&cmd_buff) != OK)
+        {
+            fprintf(stderr, "Failed to execute command\n");
+        }
+    }
+
+    free_cmd_buff(&cmd_buff);
+    return OK;
 }
