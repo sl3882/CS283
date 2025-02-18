@@ -236,7 +236,7 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
         while (isspace((unsigned char)*arg_start))
             arg_start++;
 
-        // If there's anything after echo, handle it as a single argument
+        // If there's anything after echo, add it as a single argument
         if (*arg_start != '\0')
         {
             cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
@@ -253,32 +253,6 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
             }
 
             cmd_buff->argc = 2;
-
-            // Remove extra spaces but preserve spaces inside quotes
-            char *cleaned = cmd_buff->argv[1];
-            char *read = cleaned;
-            char *write = cleaned;
-
-            bool inside_quotes = false;
-            while (*read != '\0')
-            {
-                if (*read == '"')
-                {
-                    inside_quotes = !inside_quotes;
-                    *write++ = *read++; // Copy the quote character
-                }
-                else if (isspace((unsigned char)*read) && !inside_quotes)
-                {
-                    // Skip space if not inside quotes
-                    read++;
-                }
-                else
-                {
-                    // Copy non-space characters
-                    *write++ = *read++;
-                }
-            }
-            *write = '\0';  // Null-terminate the string
         }
     }
     else
