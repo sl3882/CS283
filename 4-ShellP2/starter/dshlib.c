@@ -62,7 +62,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd) {
                 perror("cd");
             }
         } 
-        
+
         // Return that we executed a built-in command
         return BI_EXECUTED;
     }
@@ -76,4 +76,56 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd) {
     
     // Not a built-in command
     return BI_NOT_BI;
+}
+
+
+int exec_local_cmd_loop() {
+    char cmd_line[SH_CMD_MAX];
+    cmd_buff_t cmd_buff;
+
+    // Initialize the command buffer
+    if (alloc_cmd_buff(&cmd_buff) != OK) {
+        fprintf(stderr, "Failed to allocate command buffer\n");
+        return ERR_MEMORY;
+    }
+
+    while (1) {
+        printf("%s", SH_PROMPT);
+        if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL) {
+            printf("\n");
+            break;
+        }
+
+        // Remove the trailing newline
+        cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+        // Parse the command line into the command buffer
+        if (build_cmd_buff(cmd_line, &cmd_buff) != OK) {
+            fprintf(stderr, "Failed to parse command\n");
+            continue;
+        }
+
+        // Execute built-in commands
+        Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
+        if (result == BI_EXECUTED) {
+            // Built-in command executed successfully
+            continue;
+        } else if (result == BI_CMD_EXIT) {
+            // Exit the shell
+            break;
+        } else if (result == BI_CMD_DRAGON) {
+            // Handle the dragon command
+            printf("%s", dragon_txt);
+            continue;
+        }
+
+        // Execute external commands
+        if (exec_cmd(&cmd_buff) != OK) {
+            fprintf(stderr, "Failed to execute command\n");
+        }
+    }
+
+    // Free the command buffer
+    free_cmd_buff(&cmd_buff);
+    return OK;
 }
