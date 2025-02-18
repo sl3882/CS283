@@ -260,8 +260,6 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        
-
         // Execute external commands
         if (exec_cmd(&cmd_buff) != OK)
         {
