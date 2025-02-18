@@ -94,6 +94,77 @@ int alloc_cmd_buff(cmd_buff_t *cmd_buff) {
     return OK;
 }
 
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
+    // Clear the command buffer
+    clear_cmd_buff(cmd_buff);
+
+    // Tokenize the command line input
+    char *token = strtok(cmd_line, " ");
+    while (token != NULL) {
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1) {
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+        cmd_buff->argv[cmd_buff->argc] = token;
+        cmd_buff->argc++;
+        token = strtok(NULL, " ");
+    }
+
+    // Null-terminate the argv array
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+
+    // Check if any commands were parsed
+    if (cmd_buff->argc == 0) {
+        return WARN_NO_CMDS;
+    }
+
+    return OK;
+}
+int exec_cmd(cmd_buff_t *cmd) {
+    pid_t pid;
+    int status;
+
+    // Fork a new process
+    pid = fork();
+    if (pid < 0) {
+        // Fork failed
+        perror("fork");
+        return ERR_EXEC_CMD;
+    } else if (pid == 0) {
+        // Child process
+        if (execvp(cmd->argv[0], cmd->argv) < 0) {
+            // execvp failed
+            perror("execvp");
+            exit(ERR_EXEC_CMD);
+        }
+    } else {
+        // Parent process
+        // Wait for the child process to complete
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        } else {
+            return ERR_EXEC_CMD;
+        }
+    }
+
+    return OK;
+}
+int free_cmd_buff(cmd_buff_t *cmd_buff) {
+    // Free the command buffer if it was allocated
+    if (cmd_buff->_cmd_buffer != NULL) {
+        free(cmd_buff->_cmd_buffer);
+        cmd_buff->_cmd_buffer = NULL;
+    }
+
+    // Reset the argc and argv fields
+    cmd_buff->argc = 0;
+    for (int i = 0; i < CMD_ARGV_MAX; i++) {
+        cmd_buff->argv[i] = NULL;
+    }
+
+    return OK;
+}
+
 int exec_local_cmd_loop() {
     char cmd_line[SH_CMD_MAX];
     cmd_buff_t cmd_buff;
