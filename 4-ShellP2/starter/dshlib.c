@@ -53,43 +53,40 @@
  *      fork(), execvp(), exit(), chdir()
  */
 
- Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
- {
-     // Check if the command is "cd"
-     if (strcmp(cmd->argv[0], "cd") == 0)
-     {
-         // If there's an argument provided for cd
-         if (cmd->argc > 1)
-         {
-             // Change directory using chdir()
-             if (chdir(cmd->argv[1]) != 0)
-             {
-                 // Print error message if chdir fails
-                 perror("cd");
-             }
-         }
- 
-         // Return that we executed a built-in command
-         return BI_EXECUTED;
-     }
-     // Handle other built-in commands like exit
-     else if (strcmp(cmd->argv[0], EXIT_CMD) == 0)
-     {
-         return BI_CMD_EXIT;
-     }
-     else if (strcmp(cmd->argv[0], "dragon") == 0)
-     {
-         return BI_CMD_DRAGON;
-     }
- 
-     // Not a built-in command
-     return BI_NOT_BI;
- }
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
+{
+    // Check if the command is "cd"
+    if (strcmp(cmd->argv[0], "cd") == 0)
+    {
+        // If there's an argument provided for cd
+        if (cmd->argc > 1)
+        {
+            // Change directory using chdir()
+            if (chdir(cmd->argv[1]) != 0)
+            {
+                // Print error message if chdir fails
+                perror("cd");
+            }
+        }
 
- 
+        // Return that we executed a built-in command
+        return BI_EXECUTED;
+    }
+    // Handle other built-in commands like exit
+    else if (strcmp(cmd->argv[0], EXIT_CMD) == 0)
+    {
+        return BI_CMD_EXIT;
+    }
+    else if (strcmp(cmd->argv[0], "dragon") == 0)
+    {
+        return BI_CMD_DRAGON;
+    }
 
+    // Not a built-in command
+    return BI_NOT_BI;
+}
 
- int alloc_cmd_buff(cmd_buff_t *cmd_buff)
+int alloc_cmd_buff(cmd_buff_t *cmd_buff)
 {
     cmd_buff->_cmd_buffer = (char *)malloc(SH_CMD_MAX * sizeof(char));
     if (cmd_buff->_cmd_buffer == NULL)
@@ -135,7 +132,13 @@ int exec_cmd(cmd_buff_t *cmd)
 {
     pid_t pid;
     int status;
-
+    // Check if the command is "pwd" and ensure no arguments are passed to it
+    if (strcmp(cmd->argv[0], "pwd") == 0 && cmd->argc > 1)
+    {
+        // If there are extra arguments for pwd, print a warning and return an error
+        fprintf(stderr, "pwd: ignoring non-option arguments\n");
+        return ERR_EXEC_CMD;
+    }
     // Fork a new process
     pid = fork();
     if (pid < 0)
