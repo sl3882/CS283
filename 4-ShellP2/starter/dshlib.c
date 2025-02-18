@@ -53,57 +53,13 @@
  */
 int exec_local_cmd_loop()
 {
-    char cmd_buff[SH_CMD_MAX];
-    int rc = OK;
+    char *cmd_buff;
+    int rc = 0;
     cmd_buff_t cmd;
 
-    while (1) {
-        printf("%s", SH_PROMPT);
-        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL) {
-            printf("\n");
-            break;
-        }
-        // Remove the trailing \n from cmd_buff
-        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
+    // TODO IMPLEMENT MAIN LOOP
 
-        // Check if the command is the exit command
-        if (strcmp(cmd_buff, EXIT_CMD) == 0) {
-            rc = OK_EXIT;
-            break;
-        }
 
-        // Allocate command buffer
-        if (alloc_cmd_buff(&cmd) != OK) {
-            rc = ERR_MEMORY;
-            break;
-        }
 
-        // Build command buffer
-        rc = build_cmd_buff(cmd_buff, &cmd);
-        if (rc == WARN_NO_CMDS) {
-            printf(CMD_WARN_NO_CMD);
-            free_cmd_buff(&cmd);
-            continue;
-        } else if (rc == ERR_TOO_MANY_COMMANDS) {
-            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
-            free_cmd_buff(&cmd);
-            continue;
-        } else if (rc != OK) {
-            free_cmd_buff(&cmd);
-            continue;
-        }
-
-        // Execute built-in command or external command
-        Built_In_Cmds bi_cmd = match_command(cmd.argv[0]);
-        if (bi_cmd != BI_NOT_BI) {
-            exec_built_in_cmd(&cmd);
-        } else {
-            exec_cmd(&cmd);
-        }
-
-        // Free command buffer
-        free_cmd_buff(&cmd);
-    }
-
-    return rc;
+    return OK;
 }
