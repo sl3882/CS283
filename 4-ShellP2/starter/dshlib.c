@@ -275,7 +275,6 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 }
 
 
-
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
     clear_cmd_buff(cmd_buff);
