@@ -78,7 +78,21 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd) {
     // Not a built-in command
     return BI_NOT_BI;
 }
+int alloc_cmd_buff(cmd_buff_t *cmd_buff) {
+    // Allocate memory for the command buffer
+    cmd_buff->_cmd_buffer = (char *)malloc(SH_CMD_MAX * sizeof(char));
+    if (cmd_buff->_cmd_buffer == NULL) {
+        return ERR_MEMORY;
+    }
 
+    // Initialize the command buffer
+    cmd_buff->argc = 0;
+    for (int i = 0; i < CMD_ARGV_MAX; i++) {
+        cmd_buff->argv[i] = NULL;
+    }
+
+    return OK;
+}
 
 int exec_local_cmd_loop() {
     char cmd_line[SH_CMD_MAX];
