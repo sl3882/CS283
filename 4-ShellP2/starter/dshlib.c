@@ -51,14 +51,13 @@
  *  Standard Library Functions You Might Want To Consider Using (assignment 2+)
  *      fork(), execvp(), exit(), chdir()
  */
-Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
-{
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd) {
     // Check if the command is "cd"
     if (strcmp(cmd->argv[0], "cd") == 0) {
         // If there's an argument provided for cd
         if (cmd->argc > 1) {
             // Change directory using chdir()
-            if (chdir(cmd->argv[1]) != 0) {
+            if (chdir(cmd->argv[1]) {
                 // Print error message if chdir fails
                 perror("cd");
             }
