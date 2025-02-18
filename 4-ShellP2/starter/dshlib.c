@@ -210,6 +210,62 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
     return OK;
 }
 
+
+
+
+int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
+{
+    clear_cmd_buff(cmd_buff);
+    char *token;
+    bool in_quotes = false;
+    char *buffer = cmd_buff->_cmd_buffer;
+    int index = 0;
+
+    // Trim leading spaces
+    while (isspace((unsigned char)*cmd_line))
+        cmd_line++;
+
+    for (int i = 0; cmd_line[i] != '\0'; i++)
+    {
+        if (cmd_line[i] == '"')
+        {
+            in_quotes = !in_quotes;
+        }
+        else if (isspace((unsigned char)cmd_line[i]) && !in_quotes)
+        {
+            if (index > 0 && !isspace((unsigned char)buffer[index - 1]))
+            {
+                buffer[index++] = '\0'; // Split args
+            }
+        }
+        else
+        {
+            buffer[index++] = cmd_line[i];
+        }
+    }
+
+    buffer[index] = '\0';
+
+    // Populate cmd_buff->argv
+    char *ptr = buffer;
+    while (*ptr)
+    {
+        cmd_buff->argv[cmd_buff->argc++] = ptr;
+        ptr += strlen(ptr) + 1;
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+        {
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+    }
+
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+
+    return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+}
+
+
+
+
 int exec_local_cmd_loop()
 {
     char cmd_line[SH_CMD_MAX];
@@ -234,8 +290,8 @@ int exec_local_cmd_loop()
         // Remove the trailing newline
         cmd_line[strcspn(cmd_line, "\n")] = '\0';
 
-        // Parse the command line into the command buffer
-        if (build_cmd_buff(cmd_line, &cmd_buff) != OK)
+        // Trim leading and trailing spaces and handle quoted strings
+        if (parse_input(cmd_line, &cmd_buff) != OK)
         {
             fprintf(stderr, "Failed to parse command\n");
             continue;
@@ -245,17 +301,14 @@ int exec_local_cmd_loop()
         Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
         if (result == BI_EXECUTED)
         {
-            // Built-in command executed successfully
             continue;
         }
         else if (result == BI_CMD_EXIT)
         {
-            // Exit the shell
             break;
         }
         else if (result == BI_CMD_DRAGON)
         {
-            // Handle the dragon command
             printf("%s", dragon_txt);
             continue;
         }
@@ -271,3 +324,70 @@ int exec_local_cmd_loop()
     free_cmd_buff(&cmd_buff);
     return OK;
 }
+
+
+
+
+
+
+// int exec_local_cmd_loop()
+// {
+//     char cmd_line[SH_CMD_MAX];
+//     cmd_buff_t cmd_buff;
+
+//     // Initialize the command buffer
+//     if (alloc_cmd_buff(&cmd_buff) != OK)
+//     {
+//         fprintf(stderr, "Failed to allocate command buffer\n");
+//         return ERR_MEMORY;
+//     }
+
+//     while (1)
+//     {
+//         printf("%s", SH_PROMPT);
+//         if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
+//         {
+//             printf("\n");
+//             break;
+//         }
+
+//         // Remove the trailing newline
+//         cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+//         // Parse the command line into the command buffer
+//         if (build_cmd_buff(cmd_line, &cmd_buff) != OK)
+//         {
+//             fprintf(stderr, "Failed to parse command\n");
+//             continue;
+//         }
+
+//         // Execute built-in commands
+//         Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
+//         if (result == BI_EXECUTED)
+//         {
+//             // Built-in command executed successfully
+//             continue;
+//         }
+//         else if (result == BI_CMD_EXIT)
+//         {
+//             // Exit the shell
+//             break;
+//         }
+//         else if (result == BI_CMD_DRAGON)
+//         {
+//             // Handle the dragon command
+//             printf("%s", dragon_txt);
+//             continue;
+//         }
+
+//         // Execute external commands
+//         if (exec_cmd(&cmd_buff) != OK)
+//         {
+//             fprintf(stderr, "Failed to execute command\n");
+//         }
+//     }
+
+//     // Free the command buffer
+//     free_cmd_buff(&cmd_buff);
+//     return OK;
+// }
