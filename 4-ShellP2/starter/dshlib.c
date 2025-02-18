@@ -57,7 +57,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd) {
         // If there's an argument provided for cd
         if (cmd->argc > 1) {
             // Change directory using chdir()
-            if (chdir(cmd->argv[1]) {
+            if (chdir(cmd->argv[1]) != 0) {  // Added missing closing parenthesis and check for error
                 // Print error message if chdir fails
                 perror("cd");
             }
