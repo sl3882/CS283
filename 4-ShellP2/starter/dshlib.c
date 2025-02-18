@@ -213,7 +213,7 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
 int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 {
     clear_cmd_buff(cmd_buff);
-    char *token;
+    // char *token;
     bool in_quotes = false;
     char *buffer = cmd_buff->_cmd_buffer;
     int index = 0;
