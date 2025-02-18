@@ -184,52 +184,34 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
 
 
 
+
 // int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 // {
 //     clear_cmd_buff(cmd_buff);
-//     // char *token;
-//     bool in_quotes = false;
-//     char *buffer = cmd_buff->_cmd_buffer;
-//     int index = 0;
-
+    
+//     // Skip leading whitespace
 //     while (isspace((unsigned char)*cmd_line))
 //         cmd_line++;
-
-//     for (int i = 0; cmd_line[i] != '\0'; i++)
+    
+//     // If after skipping whitespace the line is empty, return WARN_NO_CMDS
+//     if (*cmd_line == '\0')
+//         return WARN_NO_CMDS;
+    
+//     // Copy the command line for tokenization
+//     strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
+//     cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
+    
+//     // Tokenize by spaces
+//     char *token = strtok(cmd_buff->_cmd_buffer, " \t");
+//     while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
 //     {
-//         if (cmd_line[i] == '"')
-//         {
-//             in_quotes = !in_quotes;
-//         }
-//         else if (isspace((unsigned char)cmd_line[i]) && !in_quotes)
-//         {
-//             if (index > 0 && !isspace((unsigned char)buffer[index - 1]))
-//             {
-//                 buffer[index++] = '\0';
-//             }
-//         }
-//         else
-//         {
-//             buffer[index++] = cmd_line[i];
-//         }
+//         cmd_buff->argv[cmd_buff->argc++] = token;
+//         token = strtok(NULL, " \t");
 //     }
-
-//     buffer[index] = '\0';
-
-//     char *ptr = buffer;
-//     while (*ptr)
-//     {
-//         cmd_buff->argv[cmd_buff->argc++] = ptr;
-//         ptr += strlen(ptr) + 1;
-//         if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
-//         {
-//             return ERR_CMD_OR_ARGS_TOO_BIG;
-//         }
-//     }
-
+    
 //     cmd_buff->argv[cmd_buff->argc] = NULL;
-
-//     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+    
+//     return OK;
 // }
 
 int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
@@ -248,20 +230,39 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
     strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
     cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
     
-    // Tokenize by spaces
-    char *token = strtok(cmd_buff->_cmd_buffer, " \t");
-    while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
+    // First, check if this is an echo command
+    if (strncmp(cmd_line, "echo", 4) == 0 && (isspace((unsigned char)cmd_line[4]) || cmd_line[4] == '\0'))
     {
-        cmd_buff->argv[cmd_buff->argc++] = token;
-        token = strtok(NULL, " \t");
+        // Handle echo command specially
+        cmd_buff->argv[0] = "echo";
+        cmd_buff->argc = 1;
+        
+        // Skip "echo" and any whitespace after it
+        char *arg_start = cmd_line + 4;
+        while (isspace((unsigned char)*arg_start))
+            arg_start++;
+        
+        // If there's anything after echo, add it as a single argument
+        if (*arg_start != '\0') {
+            cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
+            strcpy(cmd_buff->argv[1], arg_start);
+            cmd_buff->argc = 2;
+        }
+    }
+    else {
+        // For non-echo commands, use standard tokenization
+        char *token = strtok(cmd_buff->_cmd_buffer, " \t");
+        while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
+        {
+            cmd_buff->argv[cmd_buff->argc++] = token;
+            token = strtok(NULL, " \t");
+        }
     }
     
     cmd_buff->argv[cmd_buff->argc] = NULL;
     
-    return OK;
+    return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
 }
-
-
 
 
 
