@@ -103,30 +103,6 @@ int alloc_cmd_buff(cmd_buff_t *cmd_buff)
     return OK;
 }
 
-int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
-{
-    clear_cmd_buff(cmd_buff);
-
-    char *token = strtok(cmd_line, " ");
-    while (token != NULL)
-    {
-        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
-        {
-            return ERR_CMD_OR_ARGS_TOO_BIG;
-        }
-        cmd_buff->argv[cmd_buff->argc] = token;
-        cmd_buff->argc++;
-        token = strtok(NULL, " ");
-    }
-
-    cmd_buff->argv[cmd_buff->argc] = NULL;
-    if (cmd_buff->argc == 0)
-    {
-        return WARN_NO_CMDS;
-    }
-
-    return OK;
-}
 
 int exec_cmd(cmd_buff_t *cmd)
 {
@@ -256,6 +232,30 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
 //     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
 // }
 
+// int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
+// {
+//     clear_cmd_buff(cmd_buff);
+
+//     char *token = strtok(cmd_line, " ");
+//     while (token != NULL)
+//     {
+//         if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+//         {
+//             return ERR_CMD_OR_ARGS_TOO_BIG;
+//         }
+//         cmd_buff->argv[cmd_buff->argc] = token;
+//         cmd_buff->argc++;
+//         token = strtok(NULL, " ");
+//     }
+
+//     cmd_buff->argv[cmd_buff->argc] = NULL;
+//     if (cmd_buff->argc == 0)
+//     {
+//         return WARN_NO_CMDS;
+//     }
+
+//     return OK;
+// }
 
 
 int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
