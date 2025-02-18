@@ -246,6 +246,16 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
         if (*arg_start != '\0') {
             cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
             strcpy(cmd_buff->argv[1], arg_start);
+            
+            // Now remove surrounding quotes if present
+            int len = strlen(cmd_buff->argv[1]);
+            if (len >= 2 && cmd_buff->argv[1][0] == '"' && cmd_buff->argv[1][len-1] == '"') {
+                // Remove opening quote
+                memmove(cmd_buff->argv[1], cmd_buff->argv[1] + 1, len - 1);
+                // Remove closing quote (now at len-2 because we removed opening quote)
+                cmd_buff->argv[1][len-2] = '\0';
+            }
+            
             cmd_buff->argc = 2;
         }
     }
@@ -263,7 +273,6 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
     
     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
 }
-
 
 
 
