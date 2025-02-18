@@ -115,7 +115,7 @@ int exec_local_cmd_loop() {
             break;
         } else if (result == BI_CMD_DRAGON) {
             // Handle the dragon command
-            printf("%s", dragon_txt);
+            printf("%s", dragon.txt);
             continue;
         }
 
