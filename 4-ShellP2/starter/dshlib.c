@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "dshlib.h"
+#include "dragon.txt"
 
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
@@ -115,7 +116,7 @@ int exec_local_cmd_loop() {
             break;
         } else if (result == BI_CMD_DRAGON) {
             // Handle the dragon command
-            printf("%s", dragon.txt);
+            printf("%s", dragon_txt);
             continue;
         }
 
