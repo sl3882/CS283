@@ -51,69 +51,29 @@
  *  Standard Library Functions You Might Want To Consider Using (assignment 2+)
  *      fork(), execvp(), exit(), chdir()
  */
-int exec_local_cmd_loop()
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
 {
-    char cmd_buff[SH_CMD_MAX];
-    int rc = 0;
-    cmd_buff_t cmd;
-
-    // Initialize the command buffer
-    if (alloc_cmd_buff(&cmd) != OK) {
-        fprintf(stderr, "Failed to allocate command buffer\n");
-        return ERR_MEMORY;
+    // Check if the command is "cd"
+    if (strcmp(cmd->argv[0], "cd") == 0) {
+        // If there's an argument provided for cd
+        if (cmd->argc > 1) {
+            // Change directory using chdir()
+            if (chdir(cmd->argv[1]) != 0) {
+                // Print error message if chdir fails
+                perror("cd");
+            }
+        }
+        // Return that we executed a built-in command
+        return BI_EXECUTED;
     }
-
-    while(1) {
-        printf("%s", SH_PROMPT);
-        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL) {
-            printf("\n");
-            break;
-        }
-        
-        // Remove the trailing \n from cmd_buff
-        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
-        
-        // Check if the command is the exit command
-        if (strcmp(cmd_buff, EXIT_CMD) == 0) {
-            rc = OK_EXIT;
-            break;
-        }
-        
-        // Clear the command buffer for the next command
-        if (clear_cmd_buff(&cmd) != OK) {
-            fprintf(stderr, "Failed to clear command buffer\n");
-            rc = ERR_MEMORY;
-            break;
-        }
-        
-        // Build command buffer from user input
-        rc = build_cmd_buff(cmd_buff, &cmd);
-        
-        if (rc == WARN_NO_CMDS) {
-            printf(CMD_WARN_NO_CMD);
-            continue;
-        } else if (rc == ERR_TOO_MANY_COMMANDS) {
-            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
-            continue;
-        } else if (rc == ERR_MEMORY) {
-            fprintf(stderr, "Memory allocation error\n");
-            break;
-        } else if (rc != OK) {
-            fprintf(stderr, "Unknown error: %d\n", rc);
-            continue;
-        }
-        
-        // Execute the command
-        rc = exec_cmd(&cmd);
-        
-        // If the built-in command wants us to exit
-        if (rc == OK_EXIT) {
-            break;
-        }
+    // Handle other built-in commands like exit
+    else if (strcmp(cmd->argv[0], EXIT_CMD) == 0) {
+        return BI_CMD_EXIT;
+    }
+    else if (strcmp(cmd->argv[0], "dragon") == 0) {
+        return BI_CMD_DRAGON;
     }
     
-    // Free allocated memory
-    free_cmd_buff(&cmd);
-    
-    return rc;
+    // Not a built-in command
+    return BI_NOT_BI;
 }
