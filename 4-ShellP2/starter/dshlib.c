@@ -132,13 +132,8 @@ int exec_cmd(cmd_buff_t *cmd)
 {
     pid_t pid;
     int status;
-    // Check if the command is "pwd" and ensure no arguments are passed to it
-    if (strcmp(cmd->argv[0], "pwd") == 0 && cmd->argc > 1)
-    {
-        // If there are extra arguments for pwd, print a warning and return an error
-        fprintf(stderr, "pwd: ignoring non-option arguments\n");
-        return ERR_EXEC_CMD;
-    }
+
+
     // Fork a new process
     pid = fork();
     if (pid < 0)
