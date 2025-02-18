@@ -116,3 +116,4 @@ EOF
     # Check exact match
     [ "$stripped_output" = "$expected_output" ]
 }
+
