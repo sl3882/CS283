@@ -103,42 +103,30 @@ int alloc_cmd_buff(cmd_buff_t *cmd_buff)
     return OK;
 }
 
-int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
+{
     // Clear the command buffer
     clear_cmd_buff(cmd_buff);
 
-    // Initialize variables
-    bool in_quotes = false;
-    char *cmd_ptr = cmd_buff->_cmd_buffer;
-    cmd_buff->argc = 0;
-
-    // Trim leading spaces
-    while (isspace((unsigned char)*cmd_line)) cmd_line++;
-
-    // Parse the command line
-    while (*cmd_line != '\0') {
-        if (*cmd_line == '"') {
-            in_quotes = !in_quotes;
-        } else if (isspace((unsigned char)*cmd_line) && !in_quotes) {
-            // Skip duplicate spaces
-            while (isspace((unsigned char)*(cmd_line + 1))) cmd_line++;
-            // Null-terminate the current argument
-            if (cmd_ptr != cmd_buff->_cmd_buffer && *(cmd_ptr - 1) != '\0') {
-                *cmd_ptr++ = '\0';
-                cmd_buff->argv[cmd_buff->argc++] = cmd_ptr;
-            }
-        } else {
-            *cmd_ptr++ = *cmd_line;
+    // Tokenize the command line input
+    char *token = strtok(cmd_line, " ");
+    while (token != NULL)
+    {
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+        {
+            return ERR_CMD_OR_ARGS_TOO_BIG;
         }
-        cmd_line++;
+        cmd_buff->argv[cmd_buff->argc] = token;
+        cmd_buff->argc++;
+        token = strtok(NULL, " ");
     }
-    *cmd_ptr = '\0';
 
     // Null-terminate the argv array
     cmd_buff->argv[cmd_buff->argc] = NULL;
 
     // Check if any commands were parsed
-    if (cmd_buff->argc == 0) {
+    if (cmd_buff->argc == 0)
+    {
         return WARN_NO_CMDS;
     }
 
@@ -272,7 +260,7 @@ int exec_local_cmd_loop()
             continue;
         }
 
-
+        
 
         // Execute external commands
         if (exec_cmd(&cmd_buff) != OK)
