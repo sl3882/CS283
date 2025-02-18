@@ -245,6 +245,7 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
     }
 
     buffer[index] = '\0';
+    
 
     // Populate cmd_buff->argv
     char *ptr = buffer;
