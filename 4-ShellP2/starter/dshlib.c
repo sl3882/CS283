@@ -271,8 +271,6 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
 }
 
-
-
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
     clear_cmd_buff(cmd_buff);
@@ -354,4 +352,3 @@ int exec_local_cmd_loop()
     free_cmd_buff(&cmd_buff);
     return OK;
 }
-
