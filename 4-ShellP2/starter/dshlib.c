@@ -53,38 +53,32 @@
  *      fork(), execvp(), exit(), chdir()
  */
 
-Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
-{
-    // Check if the command is "cd"
-    if (strcmp(cmd->argv[0], "cd") == 0)
-    {
-        // If there's an argument provided for cd
-        if (cmd->argc > 1)
-        {
-            // Change directory using chdir()
-            if (chdir(cmd->argv[1]) != 0)
-            {
-                // Print error message if chdir fails
-                perror("cd");
-            }
-        }
-
-        // Return that we executed a built-in command
-        return BI_EXECUTED;
-    }
-    // Handle other built-in commands like exit
-    else if (strcmp(cmd->argv[0], EXIT_CMD) == 0)
-    {
-        return BI_CMD_EXIT;
-    }
-    else if (strcmp(cmd->argv[0], "dragon") == 0)
-    {
-        return BI_CMD_DRAGON;
-    }
-
-    // Not a built-in command
-    return BI_NOT_BI;
-}
+ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
+ {
+     if (strcmp(cmd->argv[0], "cd") == 0)
+     {
+         const char *dir = cmd->argc > 1 ? cmd->argv[1] : getenv("HOME");
+         
+         // Debug prints
+         char current_dir[PATH_MAX];
+         getcwd(current_dir, sizeof(current_dir));
+         fprintf(stderr, "Current directory: %s\n", current_dir);
+         fprintf(stderr, "Attempting to cd to: %s\n", dir);
+         
+         if (chdir(dir) != 0)
+         {
+             perror("cd");
+             // Print access rights
+             fprintf(stderr, "Directory access check:\n");
+             system("ls -ld /tmp/dsh-test");
+         }
+         else
+         {
+             getcwd(current_dir, sizeof(current_dir));
+             fprintf(stderr, "Successfully changed to: %s\n", current_dir);
+         }
+         return BI_EXECUTED;
+     }
 
 int alloc_cmd_buff(cmd_buff_t *cmd_buff)
 {
