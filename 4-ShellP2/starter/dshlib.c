@@ -179,35 +179,6 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
     return OK;
 }
 
-int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
-{
-    clear_cmd_buff(cmd_buff);
-
-    // Skip leading whitespace
-    while (isspace((unsigned char)*cmd_line))
-        cmd_line++;
-
-    // If after skipping whitespace the line is empty, return WARN_NO_CMDS
-    if (*cmd_line == '\0')
-        return WARN_NO_CMDS;
-
-    // Copy the command line for tokenization
-    strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
-    cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
-
-    // Tokenize by spaces
-    char *token = strtok(cmd_buff->_cmd_buffer, " \t");
-    while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
-    {
-        cmd_buff->argv[cmd_buff->argc++] = token;
-        token = strtok(NULL, " \t");
-    }
-
-    cmd_buff->argv[cmd_buff->argc] = NULL;
-
-    return OK;
-}
-
 // int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 // {
 //     clear_cmd_buff(cmd_buff);
@@ -224,53 +195,81 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 //     strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
 //     cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
 
-//     // First, check if this is an echo command
-//     if (strncmp(cmd_line, "echo", 4) == 0 && (isspace((unsigned char)cmd_line[4]) || cmd_line[4] == '\0'))
+//     // Tokenize by spaces
+//     char *token = strtok(cmd_buff->_cmd_buffer, " \t");
+//     while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
 //     {
-//         // Handle echo command specially
-//         cmd_buff->argv[0] = "echo";
-//         cmd_buff->argc = 1;
-
-//         // Skip "echo" and any whitespace after it
-//         char *arg_start = cmd_line + 4;
-//         while (isspace((unsigned char)*arg_start))
-//             arg_start++;
-
-//         // If there's anything after echo, add it as a single argument
-//         if (*arg_start != '\0')
-//         {
-//             cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
-//             strcpy(cmd_buff->argv[1], arg_start);
-
-//             // Now remove surrounding quotes if present
-//             int len = strlen(cmd_buff->argv[1]);
-//             if (len >= 2 && cmd_buff->argv[1][0] == '"' && cmd_buff->argv[1][len - 1] == '"')
-//             {
-//                 // Remove opening quote
-//                 memmove(cmd_buff->argv[1], cmd_buff->argv[1] + 1, len - 1);
-//                 // Remove closing quote (now at len-2 because we removed opening quote)
-//                 cmd_buff->argv[1][len - 2] = '\0';
-//             }
-
-//             cmd_buff->argc = 2;
-//         }
-//     }
-//     else
-//     {
-//         // For non-echo commands, use standard tokenization
-//         char *token = strtok(cmd_buff->_cmd_buffer, " \t");
-//         while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
-//         {
-//             cmd_buff->argv[cmd_buff->argc++] = token;
-//             token = strtok(NULL, " \t");
-//         }
+//         cmd_buff->argv[cmd_buff->argc++] = token;
+//         token = strtok(NULL, " \t");
 //     }
 
 //     cmd_buff->argv[cmd_buff->argc] = NULL;
 
-//     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+//     return OK;
 // }
 
+int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
+{
+    clear_cmd_buff(cmd_buff);
+
+    // Skip leading whitespace
+    while (isspace((unsigned char)*cmd_line))
+        cmd_line++;
+
+    // If after skipping whitespace the line is empty, return WARN_NO_CMDS
+    if (*cmd_line == '\0')
+        return WARN_NO_CMDS;
+
+    // Copy the command line for tokenization
+    strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
+    cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
+
+    // First, check if this is an echo command
+    if (strncmp(cmd_line, "echo", 4) == 0 && (isspace((unsigned char)cmd_line[4]) || cmd_line[4] == '\0'))
+    {
+        // Handle echo command specially
+        cmd_buff->argv[0] = "echo";
+        cmd_buff->argc = 1;
+
+        // Skip "echo" and any whitespace after it
+        char *arg_start = cmd_line + 4;
+        while (isspace((unsigned char)*arg_start))
+            arg_start++;
+
+        // If there's anything after echo, add it as a single argument
+        if (*arg_start != '\0')
+        {
+            cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
+            strcpy(cmd_buff->argv[1], arg_start);
+
+            // Now remove surrounding quotes if present
+            int len = strlen(cmd_buff->argv[1]);
+            if (len >= 2 && cmd_buff->argv[1][0] == '"' && cmd_buff->argv[1][len - 1] == '"')
+            {
+                // Remove opening quote
+                memmove(cmd_buff->argv[1], cmd_buff->argv[1] + 1, len - 1);
+                // Remove closing quote (now at len-2 because we removed opening quote)
+                cmd_buff->argv[1][len - 2] = '\0';
+            }
+
+            cmd_buff->argc = 2;
+        }
+    }
+    else
+    {
+        // For non-echo commands, use standard tokenization
+        char *token = strtok(cmd_buff->_cmd_buffer, " \t");
+        while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
+        {
+            cmd_buff->argv[cmd_buff->argc++] = token;
+            token = strtok(NULL, " \t");
+        }
+    }
+
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+
+    return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+}
 
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
@@ -353,3 +352,5 @@ int exec_local_cmd_loop()
     free_cmd_buff(&cmd_buff);
     return OK;
 }
+
+
