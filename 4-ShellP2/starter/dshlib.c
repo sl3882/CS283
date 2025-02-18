@@ -61,7 +61,8 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd) {
                 // Print error message if chdir fails
                 perror("cd");
             }
-        }
+        } 
+        
         // Return that we executed a built-in command
         return BI_EXECUTED;
     }
