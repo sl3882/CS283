@@ -205,10 +205,62 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
     return OK;
 }
 
+
+
+
+// int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
+// {
+//     clear_cmd_buff(cmd_buff);
+//     // char *token;
+//     bool in_quotes = false;
+//     char *buffer = cmd_buff->_cmd_buffer;
+//     int index = 0;
+
+//     while (isspace((unsigned char)*cmd_line))
+//         cmd_line++;
+
+//     for (int i = 0; cmd_line[i] != '\0'; i++)
+//     {
+//         if (cmd_line[i] == '"')
+//         {
+//             in_quotes = !in_quotes;
+//         }
+//         else if (isspace((unsigned char)cmd_line[i]) && !in_quotes)
+//         {
+//             if (index > 0 && !isspace((unsigned char)buffer[index - 1]))
+//             {
+//                 buffer[index++] = '\0';
+//             }
+//         }
+//         else
+//         {
+//             buffer[index++] = cmd_line[i];
+//         }
+//     }
+
+//     buffer[index] = '\0';
+
+//     char *ptr = buffer;
+//     while (*ptr)
+//     {
+//         cmd_buff->argv[cmd_buff->argc++] = ptr;
+//         ptr += strlen(ptr) + 1;
+//         if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+//         {
+//             return ERR_CMD_OR_ARGS_TOO_BIG;
+//         }
+//     }
+
+//     cmd_buff->argv[cmd_buff->argc] = NULL;
+
+//     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+// }
+
+
+
 int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 {
     clear_cmd_buff(cmd_buff);
-    // char *token;
     bool in_quotes = false;
     char *buffer = cmd_buff->_cmd_buffer;
     int index = 0;
@@ -251,6 +303,31 @@ int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
     cmd_buff->argv[cmd_buff->argc] = NULL;
 
     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+}
+
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
+{
+    clear_cmd_buff(cmd_buff);
+
+    char *token = strtok(cmd_line, " ");
+    while (token != NULL)
+    {
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+        {
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+        cmd_buff->argv[cmd_buff->argc] = token;
+        cmd_buff->argc++;
+        token = strtok(NULL, " ");
+    }
+
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+    if (cmd_buff->argc == 0)
+    {
+        return WARN_NO_CMDS;
+    }
+
+    return OK;
 }
 
 int exec_local_cmd_loop()
