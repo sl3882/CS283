@@ -13,7 +13,7 @@
 @test "Change directory" {
     current=$(pwd)
 
-    cd /tmp
+    cd tmp
     mkdir -p dsh-test
 
     run "${current}/dsh" <<EOF                
