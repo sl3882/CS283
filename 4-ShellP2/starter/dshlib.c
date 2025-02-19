@@ -7,12 +7,13 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "dshlib.h"
+#include "dragon.txt"
 
 /*
- * Implement your exec_local_cmd_loop function by building a loop that prompts the 
+ * Implement your exec_local_cmd_loop function by building a loop that prompts the
  * user for input.  Use the SH_PROMPT constant from dshlib.h and then
  * use fgets to accept user input.
- * 
+ *
  *      while(1){
  *        printf("%s", SH_PROMPT);
  *        if (fgets(cmd_buff, ARG_MAX, stdin) == NULL){
@@ -21,11 +22,11 @@
  *        }
  *        //remove the trailing \n from cmd_buff
  *        cmd_buff[strcspn(cmd_buff,"\n")] = '\0';
- * 
+ *
  *        //IMPLEMENT THE REST OF THE REQUIREMENTS
  *      }
- * 
- *   Also, use the constants in the dshlib.h in this code.  
+ *
+ *   Also, use the constants in the dshlib.h in this code.
  *      SH_CMD_MAX              maximum buffer size for user input
  *      EXIT_CMD                constant that terminates the dsh program
  *      SH_PROMPT               the shell prompt
@@ -33,181 +34,106 @@
  *      WARN_NO_CMDS            the user command was empty
  *      ERR_TOO_MANY_COMMANDS   too many pipes used
  *      ERR_MEMORY              dynamic memory management failure
- * 
+ *
  *   errors returned
  *      OK                     No error
  *      ERR_MEMORY             Dynamic memory management failure
  *      WARN_NO_CMDS           No commands parsed
  *      ERR_TOO_MANY_COMMANDS  too many pipes used
- *   
+ *
  *   console messages
  *      CMD_WARN_NO_CMD        print on WARN_NO_CMDS
  *      CMD_ERR_PIPE_LIMIT     print on ERR_TOO_MANY_COMMANDS
  *      CMD_ERR_EXECUTE        print on execution failure of external command
- * 
+ *
  *  Standard Library Functions You Might Want To Consider Using (assignment 1+)
  *      malloc(), free(), strlen(), fgets(), strcspn(), printf()
- * 
+ *
  *  Standard Library Functions You Might Want To Consider Using (assignment 2+)
  *      fork(), execvp(), exit(), chdir()
  */
 
-
- 
- int exec_local_cmd_loop() {
-    char input[SH_CMD_MAX];  // Buffer for input command
-    cmd_buff_t cmd_buff;     // Command buffer
-    int rc;
-
-    while (1) {
-        // Print shell prompt
-        printf("%s", SH_PROMPT);
-        fflush(stdout);
-
-        // Read user input
-        if (fgets(input, SH_CMD_MAX, stdin) == NULL) {
-            printf("\n");
-            break;
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
+{
+    // Check if the command is "cd"
+    if (strcmp(cmd->argv[0], "cd") == 0)
+    {
+        // If there's an argument provided for cd
+        if (cmd->argc > 1)
+        {
+            // Change directory using chdir()
+            if (chdir(cmd->argv[1]) != 0)
+            {
+                // Print error message if chdir fails
+                perror("cd");
+            }
         }
 
-        // Trim newline character
-        input[strcspn(input, "\n")] = '\0';
+        // Return that we executed a built-in command
+        return BI_EXECUTED;
+    }
+    // Handle other built-in commands like exit
+    else if (strcmp(cmd->argv[0], EXIT_CMD) == 0)
+    {
+        return BI_CMD_EXIT;
+    }
+    else if (strcmp(cmd->argv[0], "dragon") == 0)
+    {
+        return BI_CMD_DRAGON;
+    }
 
-        rc = build_cmd_buff(input, &cmd_buff);
+    // Not a built-in command
+    return BI_NOT_BI;
+}
 
-        if (rc == WARN_NO_CMDS) {
-            printf("%s\n", CMD_WARN_NO_CMD);
-            continue;
-        } else if (rc == ERR_TOO_MANY_COMMANDS) {
-            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
-            continue;
-        }
+int alloc_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    cmd_buff->_cmd_buffer = (char *)malloc(SH_CMD_MAX * sizeof(char));
+    if (cmd_buff->_cmd_buffer == NULL)
+    {
+        return ERR_MEMORY;
+    }
 
-        // Execute built-in commands (exit, cd, which)
-        Built_In_Cmds bi_cmd = exec_built_in_cmd(&cmd_buff);
-        if (bi_cmd == BI_CMD_EXIT) {
-            return OK_EXIT;
-        } else if (bi_cmd == BI_EXECUTED) {
-            continue;
-        }
-
-        // Execute external commands
-        rc = exec_cmd(&cmd_buff);
-        if (rc == ERR_EXEC_CMD) {
-            perror("Execution failed");
-        }
-
-        free(cmd_buff._cmd_buffer);  // Free allocated memory
+    cmd_buff->argc = 0;
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL;
     }
 
     return OK;
 }
 
-Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd_buff) {
-    if (strcmp(cmd_buff->argv[0], "exit") == 0) {
-        return BI_CMD_EXIT;
-    } else if (strcmp(cmd_buff->argv[0], "cd") == 0) {
-        // No argument case: go to home directory
-        if (cmd_buff->argc == 1) {
-            return BI_EXECUTED;
-        }
-
-        // Change directory
-        if (chdir(cmd_buff->argv[1]) != 0) {
-            perror("cd"); // Prints error message with reason
-            return BI_RC;
-        }
-
-        return BI_EXECUTED;
-    } else if (strcmp(cmd_buff->argv[0], "which") == 0) {
-        // Handle `which` command
-        if (cmd_buff->argc == 2) {
-            char path[256];
-            snprintf(path, sizeof(path), "/usr/bin/which %s", cmd_buff->argv[1]);
-            system(path);  // Run the system command
-            return BI_EXECUTED;
-        } else {
-            printf("which: missing argument\n");
-            return BI_RC;
-        }
-    }
-
-    return BI_NOT_BI; // Not a built-in command
-}
-
-int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
-    bool in_quotes = false;
-    int argc = 0;
-
-    // Allocate space for cmd_buffer
-    cmd_buff->_cmd_buffer = strdup(cmd_line);
-    if (!cmd_buff->_cmd_buffer) {
-        return ERR_MEMORY;
-    }
-
-    // Tokenization
-    char *token = strtok(cmd_buff->_cmd_buffer, " ");
-    while (token != NULL) {
-        if (argc >= CMD_MAX) {
-            free(cmd_buff->_cmd_buffer);
-            return ERR_TOO_MANY_COMMANDS;
-        }
-
-        // Handle quoted arguments
-        if (token[0] == '"') {
-            in_quotes = true;
-            memmove(token, token + 1, strlen(token)); // Remove leading quote
-        }
-
-        if (in_quotes && token[strlen(token) - 1] == '"') {
-            token[strlen(token) - 1] = '\0'; // Remove trailing quote
-            in_quotes = false;
-        }
-
-        cmd_buff->argv[argc] = token;
-        argc++;
-        token = strtok(NULL, " ");
-    }
-
-    cmd_buff->argc = argc;
-    cmd_buff->argv[argc] = NULL; // Null-terminate the argument list
-
-    return (argc == 0) ? WARN_NO_CMDS : OK;
-}
-int exec_cmd(cmd_buff_t *cmd_buff)
+int exec_cmd(cmd_buff_t *cmd)
 {
     pid_t pid;
     int status;
 
-    // Fork a child process
+    // Fork a new process
     pid = fork();
-
     if (pid < 0)
     {
-        perror("fork failed");
+        // Fork failed
+        perror("fork");
         return ERR_EXEC_CMD;
     }
-    else if (pid == 0) // Child process
+    else if (pid == 0)
     {
-        // Execute command using execvp
-        execvp(cmd_buff->argv[0], cmd_buff->argv);
-
-        // If execvp fails, print error and exit child process
-        fprintf(stderr, CMD_ERR_EXECUTE ": %s\n", cmd_buff->argv[0]);
-        exit(ERR_EXEC_CMD);
-    }
-    else // Parent process
-    {
-        // Wait for child process to finish
-        if (waitpid(pid, &status, 0) == -1)
+        // Child process
+        if (execvp(cmd->argv[0], cmd->argv) < 0)
         {
-            perror("waitpid failed");
-            return ERR_EXEC_CMD;
+            // execvp failed
+            perror("execvp");
+            exit(ERR_EXEC_CMD);
         }
-
-        // Extract and return child exit status
+    }
+    else
+    {
+        // Parent process
+        // Wait for the child process to complete
+        waitpid(pid, &status, 0);
         if (WIFEXITED(status))
         {
+            // Return the exit status of the child
             return WEXITSTATUS(status);
         }
         else
@@ -215,4 +141,251 @@ int exec_cmd(cmd_buff_t *cmd_buff)
             return ERR_EXEC_CMD;
         }
     }
+
+    return OK;
 }
+
+int free_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    if (cmd_buff->_cmd_buffer != NULL)
+    {
+        free(cmd_buff->_cmd_buffer);
+        cmd_buff->_cmd_buffer = NULL;
+    }
+
+    cmd_buff->argc = 0;
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL;
+    }
+
+    return OK;
+}
+
+int clear_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    cmd_buff->argc = 0;
+
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL;
+    }
+
+    if (cmd_buff->_cmd_buffer != NULL)
+    {
+        cmd_buff->_cmd_buffer[0] = '\0';
+    }
+
+    return OK;
+}
+
+
+
+// int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
+// {
+//     clear_cmd_buff(cmd_buff);
+
+//     // Skip leading whitespace
+//     while (isspace((unsigned char)*cmd_line))
+//         cmd_line++;
+
+//     // If after skipping whitespace the line is empty, return WARN_NO_CMDS
+//     if (*cmd_line == '\0')
+//         return WARN_NO_CMDS;
+
+//     // Copy the command line for tokenization
+//     strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
+//     cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
+
+//     // First, check if this is an echo command
+//     if (strncmp(cmd_line, "echo", 4) == 0 && (isspace((unsigned char)cmd_line[4]) || cmd_line[4] == '\0'))
+//     {
+//         // Handle echo command specially
+//         cmd_buff->argv[0] = "echo";
+//         cmd_buff->argc = 1;
+
+//         // Skip "echo" and any whitespace after it
+//         char *arg_start = cmd_line + 4;
+//         while (isspace((unsigned char)*arg_start))
+//             arg_start++;
+
+//         // If there's anything after echo, add it as a single argument
+//         if (*arg_start != '\0')
+//         {
+//             cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
+//             strcpy(cmd_buff->argv[1], arg_start);
+
+//             // Now remove surrounding quotes if present
+//             int len = strlen(cmd_buff->argv[1]);
+//             if (len >= 2 && cmd_buff->argv[1][0] == '"' && cmd_buff->argv[1][len - 1] == '"')
+//             {
+//                 // Remove opening quote
+//                 memmove(cmd_buff->argv[1], cmd_buff->argv[1] + 1, len - 1);
+//                 // Remove closing quote (now at len-2 because we removed opening quote)
+//                 cmd_buff->argv[1][len - 2] = '\0';
+//             }
+
+//             cmd_buff->argc = 2;
+//         }
+//     }
+//     else
+//     {
+//         // For non-echo commands, use standard tokenization
+//         char *token = strtok(cmd_buff->_cmd_buffer, " \t");
+//         while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1)
+//         {
+//             cmd_buff->argv[cmd_buff->argc++] = token;
+//             token = strtok(NULL, " \t");
+//         }
+//     }
+
+//     cmd_buff->argv[cmd_buff->argc] = NULL;
+
+//     return (cmd_buff->argc == 0) ? WARN_NO_CMDS : OK;
+// }
+
+
+int parse_input(char *cmd_line, cmd_buff_t *cmd_buff) {
+    clear_cmd_buff(cmd_buff);
+
+    // Skip leading whitespace
+    while (isspace((unsigned char)*cmd_line))
+        cmd_line++;
+
+    // If after skipping whitespace the line is empty, return WARN_NO_CMDS
+    if (*cmd_line == '\0')
+        return WARN_NO_CMDS;
+
+    // Copy the command line for tokenization
+    strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
+    cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
+
+    // First, check if this is an echo command
+    if (strncmp(cmd_line, "echo", 4) == 0 && (isspace((unsigned char)cmd_line[4]) || cmd_line[4] == '\0')) {
+        // Handle echo command specially
+        cmd_buff->argv[0] = "echo";
+        cmd_buff->argc = 1;
+
+        // Skip "echo" and exactly one whitespace
+        char *arg_start = cmd_line + 4;
+        while (isspace((unsigned char)*arg_start))
+            arg_start++;
+
+        // If there's anything after echo, add it as a single argument
+        if (*arg_start != '\0') {
+            // Check if the argument starts with a quote
+            if (*arg_start == '"') {
+                // Find the closing quote
+                char *end_quote = strchr(arg_start + 1, '"');
+                if (end_quote != NULL) {
+                    // Copy everything between the quotes
+                    arg_start++; // Skip opening quote
+                    *end_quote = '\0'; // Remove closing quote
+                    cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
+                    strcpy(cmd_buff->argv[1], arg_start);
+                    cmd_buff->argc = 2;
+                }
+            } else {
+                // No quotes, treat rest of line as single argument
+                cmd_buff->argv[1] = cmd_buff->_cmd_buffer + (arg_start - cmd_line);
+                strcpy(cmd_buff->argv[1], arg_start);
+                cmd_buff->argc = 2;
+            }
+        }
+    } else {
+        // For non-echo commands, use standard tokenization
+        char *token = strtok(cmd_buff->_cmd_buffer, " \t");
+        while (token != NULL && cmd_buff->argc < CMD_ARGV_MAX - 1) {
+            cmd_buff->argv[cmd_buff->argc++] = token;
+            token = strtok(NULL, " \t");
+        }
+    }
+
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+    return OK;
+}
+
+
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
+{
+    clear_cmd_buff(cmd_buff);
+
+    char *token = strtok(cmd_line, " ");
+    while (token != NULL)
+    {
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+        {
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+        cmd_buff->argv[cmd_buff->argc] = token;
+        cmd_buff->argc++;
+        token = strtok(NULL, " ");
+    }
+
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+    if (cmd_buff->argc == 0)
+    {
+        return WARN_NO_CMDS;
+    }
+
+    return OK;
+}
+
+int exec_local_cmd_loop()
+{
+    char cmd_line[SH_CMD_MAX];
+    cmd_buff_t cmd_buff;
+
+    if (alloc_cmd_buff(&cmd_buff) != OK)
+    {
+        fprintf(stderr, "Failed to allocate command buffer\n");
+        return ERR_MEMORY;
+    }
+
+    while (1)
+    {
+        printf("%s", SH_PROMPT);
+        if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
+        {
+            printf("\n");
+            break;
+        }
+
+        // Remove the trailing newline
+        cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+        // Trim leading and trailing spaces and handle quoted strings
+        if (parse_input(cmd_line, &cmd_buff) != OK)
+        {
+            fprintf(stderr, "Failed to parse command\n");
+            continue;
+        }
+
+        // Execute built-in commands
+        Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
+        if (result == BI_EXECUTED)
+        {
+            continue;
+        }
+        else if (result == BI_CMD_EXIT)
+        {
+            break;
+        }
+        else if (result == BI_CMD_DRAGON)
+        {
+            printf("%s", dragon_txt);
+            continue;
+        }
+
+        // Execute external commands
+        if (exec_cmd(&cmd_buff) != OK)
+        {
+            fprintf(stderr, "Failed to execute command\n");
+        }
+    }
+
+    free_cmd_buff(&cmd_buff);
+    return OK;
+}
+
+
