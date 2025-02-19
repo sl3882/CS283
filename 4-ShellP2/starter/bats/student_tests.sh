@@ -41,3 +41,11 @@ EOF
 
     [ "$output" = "Failed to execute command" ]
 }    
+
+@test "Check if echo works" {
+    run ./dsh <<EOF
+echo Hello, world!
+EOF
+    [ "$status" -eq 0 ]
+    [[ "$output" == "Hello, world!" ]]
+}
