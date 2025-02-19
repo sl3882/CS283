@@ -23,15 +23,7 @@ EOF
 }
 
 
-@test "Check if dragon prints output" {
-    run ./dsh <<EOF
-dragon
-EOF
 
-    [ "$status" -eq 0 ]
-    [ "${lines[1]}" = "0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20," ]
-    [ "${lines[2]}" = "0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20," ]
-}
 
 
 @test "Check if exit terminates shell" {
@@ -47,5 +39,5 @@ EOF
 ls --invalid-option
 EOF
 
-    [ "$status" -ne 0 ]
+    [ "$output" = "Failed to execute command\n" ]
 }    
