@@ -30,14 +30,13 @@ EOF
 
     [ "$status" -eq 0 ]
 }
-
 @test "Check if ls with invalid option fails" {
     run ./dsh <<EOF
 ls --invalid-option
 EOF
 
     # Strip all whitespace (spaces, tabs, newlines) from the output
-    stripped_output=$(echo "$output" | tr -d '\t\n\r\f\v")
+    stripped_output=$(echo "$output" | tr -d '\t\n\r\f\v')
 
     # Expected output with all whitespace removed for easier matching
     expected_output="Failed to execute commanddsh2> dsh2> cmd loop returned 0"
