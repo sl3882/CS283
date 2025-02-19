@@ -95,6 +95,7 @@ EOF
     [ "$stripped_output" = "$expected_output" ]
 }
 
+
 @test "It handles quoted spaces" {
     run "./dsh" <<EOF                
    echo " hello     world     " 
