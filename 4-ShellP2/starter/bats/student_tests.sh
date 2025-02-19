@@ -39,5 +39,5 @@ EOF
 ls --invalid-option
 EOF
 
-    [ "$output" = "Failed to execute command\n" ]
+    [ "$output" = "Failed to execute command" ]
 }    
