@@ -29,5 +29,7 @@ EOF
 invalid_command
 EOF
 
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
 }
+
+
