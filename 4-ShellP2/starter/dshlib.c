@@ -52,6 +52,8 @@
  *      fork(), execvp(), exit(), chdir()
  */
 
+
+ 
  int exec_local_cmd_loop()
 {
     char cmd_buff[SH_CMD_MAX];
@@ -174,7 +176,6 @@ char *trim_spaces(char *str)
 // Function to parse the command line into cmd_buff
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
-    char *token;
     bool in_quotes = false;
     char *cmd_ptr = cmd_line;
     cmd_buff->argc = 0;
