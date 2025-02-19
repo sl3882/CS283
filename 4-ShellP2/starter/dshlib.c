@@ -142,7 +142,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd_buff)
 
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
-    char *ptr = cmd_line;
+    // char *ptr = cmd_line;
     bool in_quotes = false;
     int argc = 0;
 
