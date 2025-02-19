@@ -145,8 +145,6 @@ int exec_cmd(cmd_buff_t *cmd)
     return OK;
 }
 
-
-
 int free_cmd_buff(cmd_buff_t *cmd_buff)
 {
     if (cmd_buff->_cmd_buffer != NULL)
@@ -180,8 +178,6 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
 
     return OK;
 }
-
-
 
 int parse_input(char *cmd_line, cmd_buff_t *cmd_buff)
 {
@@ -296,17 +292,17 @@ int exec_local_cmd_loop()
             printf("\n");
             break;
         }
-    
+
         // Remove the trailing newline
         cmd_line[strcspn(cmd_line, "\n")] = '\0';
-    
+
         // Trim leading and trailing spaces and handle quoted strings
         if (parse_input(cmd_line, &cmd_buff) != OK)
         {
             fprintf(stderr, "Failed to parse command\n");
             continue;
         }
-    
+
         // Execute built-in commands
         Built_In_Cmds result = exec_built_in_cmd(&cmd_buff);
         if (result == BI_EXECUTED)
@@ -322,19 +318,18 @@ int exec_local_cmd_loop()
             printf("%s", dragon_txt);
             continue;
         }
-    
+
         // Execute external commands
         int exec_status = exec_cmd(&cmd_buff);
         if (exec_status != OK)
         {
             fprintf(stderr, "Failed to execute command\n");
-            return exec_status; // Ensure non-zero status is returned
+            continue;
+
+            // return exec_status; // Ensure non-zero status is returned
         }
     }
-    
+
     free_cmd_buff(&cmd_buff);
     return OK;
 }
-
-
-
