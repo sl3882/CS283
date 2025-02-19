@@ -174,35 +174,44 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
 
     return (argc == 0) ? WARN_NO_CMDS : OK;
 }
-
-int exec_cmd(cmd_buff_t *cmd_buff) {
+int exec_cmd(cmd_buff_t *cmd_buff)
+{
     pid_t pid;
     int status;
 
     // Fork a child process
     pid = fork();
 
-    if (pid < 0) {
+    if (pid < 0)
+    {
         perror("fork failed");
         return ERR_EXEC_CMD;
-    } else if (pid == 0) { // Child process
+    }
+    else if (pid == 0) // Child process
+    {
         // Execute command using execvp
         execvp(cmd_buff->argv[0], cmd_buff->argv);
 
         // If execvp fails, print error and exit child process
-        perror("execvp failed");
+        fprintf(stderr, CMD_ERR_EXECUTE ": %s\n", cmd_buff->argv[0]);
         exit(ERR_EXEC_CMD);
-    } else { // Parent process
-        // Wait for child process to finish and get return code
-        if (waitpid(pid, &status, 0) == -1) {
+    }
+    else // Parent process
+    {
+        // Wait for child process to finish
+        if (waitpid(pid, &status, 0) == -1)
+        {
             perror("waitpid failed");
             return ERR_EXEC_CMD;
         }
 
         // Extract and return child exit status
-        if (WIFEXITED(status)) {
+        if (WIFEXITED(status))
+        {
             return WEXITSTATUS(status);
-        } else {
+        }
+        else
+        {
             return ERR_EXEC_CMD;
         }
     }
