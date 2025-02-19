@@ -12,3 +12,22 @@ EOF
     # Assertions
     [ "$status" -eq 0 ]
 }
+
+
+@test "Check if ls lists files" {
+    run ./dsh <<EOF                
+ls
+EOF
+
+    [ "$status" -eq 0 ]
+}
+
+
+
+@test "Check if unknown command fails" {
+    run ./dsh <<EOF                
+invalid_command
+EOF
+
+    [ "$status" -ne 0 ]
+}
