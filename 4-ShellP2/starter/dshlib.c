@@ -323,10 +323,9 @@ int exec_local_cmd_loop()
         int exec_status = exec_cmd(&cmd_buff);
         if (exec_status != OK)
         {
-            fprintf(stderr, "Failed to execute command\n");
-            continue;
+            fprintf(stderr, "Failed to execute command\n");        
 
-            // return exec_status; // Ensure non-zero status is returned
+            return exec_status; // Ensure non-zero status is returned
         }
     }
 

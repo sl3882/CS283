@@ -23,13 +23,29 @@ EOF
 }
 
 
-
-@test "Check if unknown command fails" {
-    run ./dsh <<EOF                
-invalid_command
+@test "Check if dragon prints output" {
+    run ./dsh <<EOF
+dragon
 EOF
 
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 0 ]
+    [ "${lines[1]}" = "0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20," ]
+    [ "${lines[2]}" = "0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20," ]
 }
 
 
+@test "Check if exit terminates shell" {
+    run ./dsh <<EOF
+exit
+EOF
+
+    [ "$status" -eq 0 ]
+}
+
+@test "Check if ls with invalid option fails" {
+    run ./dsh <<EOF
+ls --invalid-option
+EOF
+
+    [ "$status" -ne 0 ]
+}    
