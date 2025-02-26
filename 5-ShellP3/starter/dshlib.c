@@ -632,7 +632,7 @@ int exec_cmd(cmd_buff_t *cmd)
 }
 
 
-void execute_pipeline(command commands[], int num_commands) {
+int execute_pipeline(command commands[], int num_commands) {
     if (num_commands <= 0) {
         fprintf(stderr, "Error: No commands to execute\n");
         return;
@@ -711,4 +711,5 @@ void execute_pipeline(command commands[], int num_commands) {
             fprintf(stderr, "Command %d failed\n", i);
         }
     }
+    return OK
 }
