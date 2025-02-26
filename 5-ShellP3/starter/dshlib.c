@@ -328,122 +328,6 @@ int exec_cmd(cmd_buff_t *cmd) {
     return OK;
 }
 
-/*
- * Execute a pipeline of commands
- */
-int execute_pipeline(command_list_t *clist) {
-    if (clist == NULL || clist->num <= 0) {
-        return WARN_NO_CMDS;
-    }
-    
-    // Check for built-in commands in the first command
-    Built_In_Cmds result = exec_built_in_cmd(&clist->commands[0]);
-    if (result == BI_CMD_EXIT) {
-        return OK_EXIT;
-    } else if (result == BI_EXECUTED && clist->num == 1) {
-        return OK;
-    }
-    
-    // Array to store process IDs for each command
-    pid_t pids[CMD_MAX];
-    
-    // We need n-1 pipes for n commands
-    int pipes[CMD_MAX - 1][2];
-    
-    // Create all necessary pipes
-    for (int i = 0; i < clist->num - 1; i++) {
-        if (pipe(pipes[i]) == -1) {
-            perror("pipe");
-            // Close any pipes already created
-            for (int j = 0; j < i; j++) {
-                close(pipes[j][0]);
-                close(pipes[j][1]);
-            }
-            return ERR_EXEC_CMD;
-        }
-    }
-    
-    // Create and connect all processes in the pipeline
-    for (int i = 0; i < clist->num; i++) {
-        // Fork a child process
-        pids[i] = fork();
-        
-        if (pids[i] < 0) {
-            // Fork failed
-            perror("fork");
-            
-            // Clean up all pipes
-            for (int j = 0; j < clist->num - 1; j++) {
-                close(pipes[j][0]);
-                close(pipes[j][1]);
-            }
-            
-            // Kill any children already created
-            for (int j = 0; j < i; j++) {
-                kill(pids[j], SIGTERM);
-                waitpid(pids[j], NULL, 0);
-            }
-            
-            return ERR_EXEC_CMD;
-        } else if (pids[i] == 0) {
-            // Child process
-            
-            // Connect pipes to stdin/stdout as needed
-            
-            // If not the first command, connect input from previous pipe
-            if (i > 0) {
-                if (dup2(pipes[i-1][0], STDIN_FILENO) == -1) {
-                    perror("dup2 (stdin)");
-                    exit(EXIT_FAILURE);
-                }
-            }
-            
-            // If not the last command, connect output to next pipe
-            if (i < clist->num - 1) {
-                if (dup2(pipes[i][1], STDOUT_FILENO) == -1) {
-                    perror("dup2 (stdout)");
-                    exit(EXIT_FAILURE);
-                }
-            }
-            
-            // Close all pipe file descriptors in the child
-            // This is important to prevent descriptor leaks
-            for (int j = 0; j < clist->num - 1; j++) {
-                close(pipes[j][0]);
-                close(pipes[j][1]);
-            }
-            
-            // Execute the command
-            if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) == -1) {
-                perror("execvp");
-                exit(EXIT_FAILURE);
-            }
-            
-            // This should never be reached
-            exit(EXIT_FAILURE);
-        }
-    }
-    
-    // Parent process
-    
-    // Close all pipe file descriptors in the parent
-    // This is crucial - without this, reading processes won't see EOF
-    for (int i = 0; i < clist->num - 1; i++) {
-        close(pipes[i][0]);
-        close(pipes[i][1]);
-    }
-    
-    // Wait for all child processes to complete
-    int status;
-    for (int i = 0; i < clist->num; i++) {
-        if (waitpid(pids[i], &status, 0) == -1) {
-            perror("waitpid");
-            return ERR_EXEC_CMD;
-        }
-    }
-    
-    return OK;
-}
 
 /*
  * Main command loop for the shell
@@ -517,6 +401,108 @@ int exec_local_cmd_loop() {
         
         // Free the command list
         free_cmd_list(&cmd_list);
+    }
+    
+    return OK;
+}
+
+
+
+int execute_pipeline(command_list_t *clist) {
+    if (clist == NULL || clist->num <= 0) {
+        return WARN_NO_CMDS;
+    }
+    
+    // Check for built-in commands in the first command
+    Built_In_Cmds result = exec_built_in_cmd(&clist->commands[0]);
+    if (result == BI_CMD_EXIT) {
+        return OK_EXIT;
+    } else if (result == BI_EXECUTED && clist->num == 1) {
+        return OK;
+    }
+    
+    // Array to store process IDs for each command
+    pid_t pids[CMD_MAX];
+    
+    // We need n-1 pipes for n commands
+    int pipes[CMD_MAX - 1][2];
+    
+    // Create all necessary pipes
+    for (int i = 0; i < clist->num - 1; i++) {
+        if (pipe(pipes[i]) == -1) {
+            perror("pipe");
+            // Close any pipes already created
+            for (int j = 0; j < i; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            return ERR_EXEC_CMD;
+        }
+    }
+    
+    // Create and connect all processes in the pipeline
+    for (int i = 0; i < clist->num; i++) {
+        // Fork a child process
+        pids[i] = fork();
+        
+        if (pids[i] < 0) {
+            // Fork failed
+            perror("fork");
+            
+            // Clean up all pipes
+            for (int j = 0; j < clist->num - 1; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            
+            // Kill any children already created
+            for (int j = 0; j < i; j++) {
+                kill(pids[j], SIGTERM);
+                waitpid(pids[j], NULL, 0);
+            }
+            
+            return ERR_EXEC_CMD;
+        } else if (pids[i] == 0) {
+            // Child process
+            
+            // Set up the pipe redirections
+            if (i > 0) {
+                // Not the first command, so read from the previous pipe
+                dup2(pipes[i-1][0], STDIN_FILENO);
+            }
+            
+            if (i < clist->num - 1) {
+                // Not the last command, so write to the next pipe
+                dup2(pipes[i][1], STDOUT_FILENO);
+            }
+            
+            // Close ALL pipe file descriptors in the child
+            // This is critical - the child should only have the redirected stdin/stdout
+            for (int j = 0; j < clist->num - 1; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            
+            // Execute the command
+            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            
+            // If execvp returns, it failed
+            perror(clist->commands[i].argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    // Parent process - close ALL pipe file descriptors
+    // This is crucial for the pipeline to work properly
+    for (int i = 0; i < clist->num - 1; i++) {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+    
+    // Wait for all children to finish
+    for (int i = 0; i < clist->num; i++) {
+        int status;
+        waitpid(pids[i], &status, 0);
     }
     
     return OK;
