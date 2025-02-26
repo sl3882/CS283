@@ -711,6 +711,6 @@ int execute_pipeline(command commands[], int num_commands) {
             fprintf(stderr, "Command %d failed\n", i);
         }
     }
-    
-    return OK
+
+    return OK;
 }
