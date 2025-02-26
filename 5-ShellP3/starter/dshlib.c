@@ -719,7 +719,6 @@ int exec_cmd(cmd_buff_t *cmd)
 //     return OK;
 // }
 
-
 int execute_pipeline(command_list_t *clist) {
     if (clist == NULL || clist->num <= 0) {
         fprintf(stderr, "Error: No commands to execute\n");
@@ -733,7 +732,7 @@ int execute_pipeline(command_list_t *clist) {
     for (int i = 0; i < clist->num - 1; i++) {
         if (pipe(pipes[i]) == -1) {
             perror("pipe");
-            exit(EXIT_FAILURE);
+            return ERR_EXEC_CMD;
         }
     }
 
@@ -751,13 +750,13 @@ int execute_pipeline(command_list_t *clist) {
             for (int j = 0; j < i; j++) {
                 kill(pids[j], SIGTERM);
             }
-            exit(EXIT_FAILURE);
+            return ERR_EXEC_CMD;
         }
 
         if (pids[i] == 0) {  // Child process
             // Set up input pipe for all except first process
             if (i > 0) {
-                if (dup2(pipes[i-1][0], STDIN_FILENO) == -1) {
+                if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1) {
                     perror("dup2 (stdin)");
                     exit(EXIT_FAILURE);
                 }
@@ -799,5 +798,6 @@ int execute_pipeline(command_list_t *clist) {
             fprintf(stderr, "Command %d failed\n", i);
         }
     }
+
     return OK;
 }
