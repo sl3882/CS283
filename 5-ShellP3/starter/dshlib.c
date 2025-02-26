@@ -125,10 +125,7 @@ int exec_local_cmd_loop() {
             continue;
         }
 
-        // ======================================================
-        // Place the pipeline execution code here
-        // ======================================================
-        // Execute the commands with pipes if we have multiple commands
+
         if (cmd_list.num > 1) {
             result = execute_pipeline(&cmd_list);
             if (result != OK) {
@@ -275,21 +272,38 @@ int build_cmd_list(char *cmd_line, command_list_t *clist)
     char *cmd_token = strtok(cmd_copy, PIPE_STRING);
     while (cmd_token != NULL && clist->num < CMD_MAX)
     {
-        // Remove leading and trailing whitespace
-        while (*cmd_token == SPACE_CHAR)
-        {
-            cmd_token++;
-        }
+        // // Remove leading and trailing whitespace
+        // while (*cmd_token == SPACE_CHAR)
+        // {
+        //     cmd_token++;
+        // }
 
-        int len = strlen(cmd_token);
-        while (len > 0 && cmd_token[len - 1] == SPACE_CHAR)
-        {
-            cmd_token[--len] = '\0';
-        }
+        // int len = strlen(cmd_token);
+        // while (len > 0 && cmd_token[len - 1] == SPACE_CHAR)
+        // {
+        //     cmd_token[--len] = '\0';
+        // }
 
+        // // Skip empty commands
+        // if (strlen(cmd_token) == 0)
+        // {
+        //     cmd_token = strtok(NULL, PIPE_STRING);
+        //     continue;
+        // }
+
+        int start = 0;
+        while (cmd_token[start] == SPACE_CHAR) {
+            start++;
+        }
+        int end = strlen(cmd_token) - 1;
+        while (end > start && cmd_token[end] == SPACE_CHAR) {
+            end--;
+        }
+        cmd_token[end + 1] = '\0'; // Null-terminate the trimmed string
+        cmd_token = cmd_token + start; // Shift pointer
+    
         // Skip empty commands
-        if (strlen(cmd_token) == 0)
-        {
+        if (strlen(cmd_token) == 0) {
             cmd_token = strtok(NULL, PIPE_STRING);
             continue;
         }
@@ -571,6 +585,6 @@ int execute_pipeline(command_list_t *clist) {
         }
     }
 
-    
+
     return pipeline_status;
 }
