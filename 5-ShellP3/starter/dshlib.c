@@ -65,20 +65,118 @@
 
 
 
-int exec_local_cmd_loop()
-{
+// int exec_local_cmd_loop()
+// {
+//     char cmd_line[SH_CMD_MAX];
+//     command_list_t cmd_list;
+//     int result;
+
+//     while (1)
+//     {
+//         // Print the shell prompt
+//         printf("%s", SH_PROMPT);
+
+//         // Get user input
+//         if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
+//         {
+//             printf("\n");
+//             break;
+//         }
+
+//         // Remove the trailing newline character
+//         cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+//         // Check if user wants to exit
+//         if (strcmp(cmd_line, EXIT_CMD) == 0)
+//         {
+//             return OK_EXIT;
+//         }
+
+//         // Skip empty commands
+//         if (strlen(cmd_line) == 0)
+//         {
+//             continue;
+//         }
+
+//         // Parse the command line into a command list
+//         result = build_cmd_list(cmd_line, &cmd_list);
+
+//         // Handle parsing results
+//         if (result == WARN_NO_CMDS)
+//         {
+//             printf(CMD_WARN_NO_CMD);
+//             continue;
+//         }
+//         else if (result == ERR_TOO_MANY_COMMANDS)
+//         {
+//             printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+//             continue;
+//         }
+//         else if (result == ERR_MEMORY)
+//         {
+//             printf("Error: Memory allocation failed\n");
+//             return ERR_MEMORY;
+//         }
+//         else if (result != OK)
+//         {
+//             printf("Error: Command parsing failed\n");
+//             continue;
+//         }
+
+//         // Check for built-in commands before executing pipeline
+//         Built_In_Cmds bi_result = exec_built_in_cmd(&cmd_list.commands[0]);
+
+//         if (bi_result == BI_CMD_EXIT)
+//         {
+//             free_cmd_list(&cmd_list);
+//             return OK_EXIT;
+//         }
+//         else if (bi_result == BI_EXECUTED)
+//         {
+//             // Built-in command was executed successfully
+//             free_cmd_list(&cmd_list);
+//             continue;
+//         }
+
+//         // Execute the commands with pipes if we have multiple commands
+//         if (cmd_list.num > 1)
+//         {
+//             result = execute_pipeline(&cmd_list);
+//             if (result != OK)
+//             {
+//                 printf("Error executing piped commands\n");
+//             }
+//         }
+//         else
+//         {
+//             // Execute a single command (no pipes)
+//             result = exec_cmd(&cmd_list.commands[0]);
+//             if (result != OK)
+//             {
+//                 printf("Error executing command\n");
+//             }
+//         }
+
+//         // Free any allocated memory in the command list
+//         free_cmd_list(&cmd_list);
+//     }
+
+//     return OK;
+// }
+
+
+
+int exec_local_cmd_loop() {
     char cmd_line[SH_CMD_MAX];
     command_list_t cmd_list;
     int result;
 
-    while (1)
-    {
+    while (1) {
         // Print the shell prompt
         printf("%s", SH_PROMPT);
 
         // Get user input
-        if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
-        {
+        if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL) {
             printf("\n");
             break;
         }
@@ -87,14 +185,12 @@ int exec_local_cmd_loop()
         cmd_line[strcspn(cmd_line, "\n")] = '\0';
 
         // Check if user wants to exit
-        if (strcmp(cmd_line, EXIT_CMD) == 0)
-        {
+        if (strcmp(cmd_line, EXIT_CMD) == 0) {
             return OK_EXIT;
         }
 
         // Skip empty commands
-        if (strlen(cmd_line) == 0)
-        {
+        if (strlen(cmd_line) == 0) {
             continue;
         }
 
@@ -102,23 +198,16 @@ int exec_local_cmd_loop()
         result = build_cmd_list(cmd_line, &cmd_list);
 
         // Handle parsing results
-        if (result == WARN_NO_CMDS)
-        {
+        if (result == WARN_NO_CMDS) {
             printf(CMD_WARN_NO_CMD);
             continue;
-        }
-        else if (result == ERR_TOO_MANY_COMMANDS)
-        {
+        } else if (result == ERR_TOO_MANY_COMMANDS) {
             printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
             continue;
-        }
-        else if (result == ERR_MEMORY)
-        {
+        } else if (result == ERR_MEMORY) {
             printf("Error: Memory allocation failed\n");
             return ERR_MEMORY;
-        }
-        else if (result != OK)
-        {
+        } else if (result != OK) {
             printf("Error: Command parsing failed\n");
             continue;
         }
@@ -126,33 +215,28 @@ int exec_local_cmd_loop()
         // Check for built-in commands before executing pipeline
         Built_In_Cmds bi_result = exec_built_in_cmd(&cmd_list.commands[0]);
 
-        if (bi_result == BI_CMD_EXIT)
-        {
+        if (bi_result == BI_CMD_EXIT) {
             free_cmd_list(&cmd_list);
             return OK_EXIT;
-        }
-        else if (bi_result == BI_EXECUTED)
-        {
+        } else if (bi_result == BI_EXECUTED) {
             // Built-in command was executed successfully
             free_cmd_list(&cmd_list);
             continue;
         }
 
+        // ======================================================
+        // Place the pipeline execution code here
+        // ======================================================
         // Execute the commands with pipes if we have multiple commands
-        if (cmd_list.num > 1)
-        {
+        if (cmd_list.num > 1) {
             result = execute_pipeline(&cmd_list);
-            if (result != OK)
-            {
+            if (result != OK) {
                 printf("Error executing piped commands\n");
             }
-        }
-        else
-        {
+        } else {
             // Execute a single command (no pipes)
             result = exec_cmd(&cmd_list.commands[0]);
-            if (result != OK)
-            {
+            if (result != OK) {
                 printf("Error executing command\n");
             }
         }
@@ -163,7 +247,6 @@ int exec_local_cmd_loop()
 
     return OK;
 }
-
 
 int alloc_cmd_buff(cmd_buff_t *cmd_buff)
 {
@@ -637,13 +720,17 @@ int exec_cmd(cmd_buff_t *cmd)
 // }
 
 
+int execute_pipeline(command_list_t *clist) {
+    if (clist == NULL || clist->num <= 0) {
+        fprintf(stderr, "Error: No commands to execute\n");
+        return WARN_NO_CMDS;
+    }
 
-int execute_pipeline(Command commands[], int num_commands) {
-    int pipes[num_commands - 1][2];  // Array of pipes
-    pid_t pids[num_commands];        // Array to store process IDs
+    int pipes[clist->num - 1][2];  // Array of pipes
+    pid_t pids[clist->num];        // Array to store process IDs
 
     // Create all necessary pipes
-    for (int i = 0; i < num_commands - 1; i++) {
+    for (int i = 0; i < clist->num - 1; i++) {
         if (pipe(pipes[i]) == -1) {
             perror("pipe");
             exit(EXIT_FAILURE);
@@ -651,46 +738,66 @@ int execute_pipeline(Command commands[], int num_commands) {
     }
 
     // Create processes for each command
-    for (int i = 0; i < num_commands; i++) {
+    for (int i = 0; i < clist->num; i++) {
         pids[i] = fork();
         if (pids[i] == -1) {
             perror("fork");
+
+            // Clean up pipes and kill any already forked children
+            for (int j = 0; j < clist->num - 1; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            for (int j = 0; j < i; j++) {
+                kill(pids[j], SIGTERM);
+            }
             exit(EXIT_FAILURE);
         }
 
         if (pids[i] == 0) {  // Child process
             // Set up input pipe for all except first process
             if (i > 0) {
-                dup2(pipes[i-1][0], STDIN_FILENO);
+                if (dup2(pipes[i-1][0], STDIN_FILENO) == -1) {
+                    perror("dup2 (stdin)");
+                    exit(EXIT_FAILURE);
+                }
             }
 
             // Set up output pipe for all except last process
-            if (i < num_commands - 1) {
-                dup2(pipes[i][1], STDOUT_FILENO);
+            if (i < clist->num - 1) {
+                if (dup2(pipes[i][1], STDOUT_FILENO) == -1) {
+                    perror("dup2 (stdout)");
+                    exit(EXIT_FAILURE);
+                }
             }
 
             // Close all pipe ends in child
-            for (int j = 0; j < num_commands - 1; j++) {
+            for (int j = 0; j < clist->num - 1; j++) {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
 
             // Execute command
-            execvp(commands[i].args[0], commands[i].args);
-            perror("execvp");
+            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            perror("execvp");  // If execvp fails
             exit(EXIT_FAILURE);
         }
     }
 
     // Parent process: close all pipe ends
-    for (int i = 0; i < num_commands - 1; i++) {
+    for (int i = 0; i < clist->num - 1; i++) {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
 
-    // Wait for all children
-    for (int i = 0; i < num_commands; i++) {
-        waitpid(pids[i], NULL, 0);
+    // Wait for all children and check their status
+    int status;
+    for (int i = 0; i < clist->num; i++) {
+        if (waitpid(pids[i], &status, 0) == -1) {
+            perror("waitpid");
+        } else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "Command %d failed\n", i);
+        }
     }
     return OK;
 }
