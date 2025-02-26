@@ -52,6 +52,15 @@
  *  Standard Library Functions You Might Want To Consider Using (assignment 2+)
  *      fork(), execvp(), exit(), chdir()
  */
+
+
+
+ typedef struct {
+    char *args[256];  // Array of command arguments (you can adjust the size)
+} command_t;
+
+
+
 int exec_local_cmd_loop()
 {
     char cmd_line[SH_CMD_MAX];
@@ -621,9 +630,6 @@ int exec_cmd(cmd_buff_t *cmd)
 
     return OK;
 }
-
-
-
 
 
 void execute_pipeline(command_t commands[], int num_commands) {
