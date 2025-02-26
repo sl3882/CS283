@@ -6,9 +6,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-#include "dragon.txt"
-#include "dshlib.h"
 
+#include "dshlib.h"
+#include "dragon.txt"
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the
  * user for input.  Use the SH_PROMPT constant from dshlib.h and then
