@@ -65,105 +65,6 @@
 
 
 
-// int exec_local_cmd_loop()
-// {
-//     char cmd_line[SH_CMD_MAX];
-//     command_list_t cmd_list;
-//     int result;
-
-//     while (1)
-//     {
-//         // Print the shell prompt
-//         printf("%s", SH_PROMPT);
-
-//         // Get user input
-//         if (fgets(cmd_line, SH_CMD_MAX, stdin) == NULL)
-//         {
-//             printf("\n");
-//             break;
-//         }
-
-//         // Remove the trailing newline character
-//         cmd_line[strcspn(cmd_line, "\n")] = '\0';
-
-//         // Check if user wants to exit
-//         if (strcmp(cmd_line, EXIT_CMD) == 0)
-//         {
-//             return OK_EXIT;
-//         }
-
-//         // Skip empty commands
-//         if (strlen(cmd_line) == 0)
-//         {
-//             continue;
-//         }
-
-//         // Parse the command line into a command list
-//         result = build_cmd_list(cmd_line, &cmd_list);
-
-//         // Handle parsing results
-//         if (result == WARN_NO_CMDS)
-//         {
-//             printf(CMD_WARN_NO_CMD);
-//             continue;
-//         }
-//         else if (result == ERR_TOO_MANY_COMMANDS)
-//         {
-//             printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
-//             continue;
-//         }
-//         else if (result == ERR_MEMORY)
-//         {
-//             printf("Error: Memory allocation failed\n");
-//             return ERR_MEMORY;
-//         }
-//         else if (result != OK)
-//         {
-//             printf("Error: Command parsing failed\n");
-//             continue;
-//         }
-
-//         // Check for built-in commands before executing pipeline
-//         Built_In_Cmds bi_result = exec_built_in_cmd(&cmd_list.commands[0]);
-
-//         if (bi_result == BI_CMD_EXIT)
-//         {
-//             free_cmd_list(&cmd_list);
-//             return OK_EXIT;
-//         }
-//         else if (bi_result == BI_EXECUTED)
-//         {
-//             // Built-in command was executed successfully
-//             free_cmd_list(&cmd_list);
-//             continue;
-//         }
-
-//         // Execute the commands with pipes if we have multiple commands
-//         if (cmd_list.num > 1)
-//         {
-//             result = execute_pipeline(&cmd_list);
-//             if (result != OK)
-//             {
-//                 printf("Error executing piped commands\n");
-//             }
-//         }
-//         else
-//         {
-//             // Execute a single command (no pipes)
-//             result = exec_cmd(&cmd_list.commands[0]);
-//             if (result != OK)
-//             {
-//                 printf("Error executing command\n");
-//             }
-//         }
-
-//         // Free any allocated memory in the command list
-//         free_cmd_list(&cmd_list);
-//     }
-
-//     return OK;
-// }
-
 
 
 int exec_local_cmd_loop() {
@@ -586,147 +487,15 @@ int exec_cmd(cmd_buff_t *cmd)
     return OK;
 }
 
-// int execute_pipeline(command_list_t *clist)
-// {
-//     if (clist == NULL || clist->num <= 0)
-//     {
-//         return WARN_NO_CMDS;
-//     }
-
-//     // Array to store process IDs for each command
-//     pid_t pids[CMD_MAX];
-
-//     // We need n-1 pipes for n commands
-//     int pipes[CMD_MAX - 1][2];
-
-//     // Create all necessary pipes
-//     for (int i = 0; i < clist->num - 1; i++)
-//     {
-//         if (pipe(pipes[i]) == -1)
-//         {
-//             perror("pipe");
-//             // Close any pipes already created
-//             for (int j = 0; j < i; j++)
-//             {
-//                 close(pipes[j][0]);
-//                 close(pipes[j][1]);
-//             }
-//             return ERR_EXEC_CMD;
-//         }
-//     }
-
-//     // Create and connect all processes in the pipeline
-//     for (int i = 0; i < clist->num; i++)
-//     {
-//         // Fork a child process
-//         pids[i] = fork();
-
-//         if (pids[i] < 0)
-//         {
-//             // Fork failed
-//             perror("fork");
-
-//             // Clean up all pipes
-//             for (int j = 0; j < clist->num - 1; j++)
-//             {
-//                 close(pipes[j][0]);
-//                 close(pipes[j][1]);
-//             }
-
-//             // Kill any children already created
-//             for (int j = 0; j < i; j++)
-//             {
-//                 kill(pids[j], SIGTERM);
-//                 waitpid(pids[j], NULL, 0);
-//             }
-
-//             return ERR_EXEC_CMD;
-//         }
-//         else if (pids[i] == 0)
-//         {
-//             // Child process
-
-//             // Connect pipes to stdin/stdout as needed
-
-//             // If not the first command, connect input from previous pipe
-//             if (i > 0)
-//             {
-//                 if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1)
-//                 {
-//                     perror("dup2 (stdin)");
-//                     exit(EXIT_FAILURE);
-//                 }
-//             }
-
-//             // If not the last command, connect output to next pipe
-//             if (i < clist->num - 1)
-//             {
-//                 if (dup2(pipes[i][1], STDOUT_FILENO) == -1)
-//                 {
-//                     perror("dup2 (stdout)");
-//                     exit(EXIT_FAILURE);
-//                 }
-//             }
-
-//             // Close all pipe file descriptors in the child
-//             // This is important to prevent descriptor leaks
-//             for (int j = 0; j < clist->num - 1; j++)
-//             {
-//                 close(pipes[j][0]);
-//                 close(pipes[j][1]);
-//             }
-
-//             // Execute the command
-//             if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) == -1)
-//             {
-//                 perror("execvp");
-//                 exit(EXIT_FAILURE);
-//             }
-
-//             // This should never be reached
-//             exit(EXIT_FAILURE);
-//         }
-//     }
-
-//     // Parent process
-
-//     // Close all pipe file descriptors in the parent
-//     // This is crucial - without this, reading processes won't see EOF
-//     for (int i = 0; i < clist->num - 1; i++)
-//     {
-//         close(pipes[i][0]);
-//         close(pipes[i][1]);
-//     }
-
-//     // Wait for all child processes to complete
-//     int status;
-//     for (int i = 0; i < clist->num; i++)
-//     {
-//         if (waitpid(pids[i], &status, 0) == -1)
-//         {
-//             perror("waitpid");
-//             return ERR_EXEC_CMD;
-//         }
-
-//         // Check if the command executed successfully
-//         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-//         {
-//             // Command failed or terminated abnormally
-//             return ERR_EXEC_CMD;
-//         }
-//     }
-
-//     return OK;
-// }
 
 int execute_pipeline(command_list_t *clist) {
     if (clist == NULL || clist->num <= 0) {
-        fprintf(stderr, "Error: No commands to execute\n");
         return WARN_NO_CMDS;
     }
 
     int pipes[clist->num - 1][2];  // Array of pipes
     pid_t pids[clist->num];        // Array to store process IDs
+    int pipeline_status = OK;      // Track overall pipeline status
 
     // Create all necessary pipes
     for (int i = 0; i < clist->num - 1; i++) {
@@ -749,6 +518,7 @@ int execute_pipeline(command_list_t *clist) {
             }
             for (int j = 0; j < i; j++) {
                 kill(pids[j], SIGTERM);
+                waitpid(pids[j], NULL, 0);
             }
             return ERR_EXEC_CMD;
         }
@@ -778,7 +548,7 @@ int execute_pipeline(command_list_t *clist) {
 
             // Execute command
             execvp(clist->commands[i].argv[0], clist->commands[i].argv);
-            perror("execvp");  // If execvp fails
+            printf(CMD_ERR_EXECUTE, clist->commands[i].argv[0]);  // Print error message if execvp fails
             exit(EXIT_FAILURE);
         }
     }
@@ -794,10 +564,12 @@ int execute_pipeline(command_list_t *clist) {
     for (int i = 0; i < clist->num; i++) {
         if (waitpid(pids[i], &status, 0) == -1) {
             perror("waitpid");
+            pipeline_status = ERR_EXEC_CMD;
         } else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "Command %d failed\n", i);
+            // Command failed or terminated abnormally
+            pipeline_status = ERR_EXEC_CMD; // Mark the whole pipeline as failed
         }
     }
 
-    return OK;
+    return pipeline_status;
 }
