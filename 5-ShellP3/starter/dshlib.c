@@ -571,5 +571,6 @@ int execute_pipeline(command_list_t *clist) {
         }
     }
 
+    
     return pipeline_status;
 }

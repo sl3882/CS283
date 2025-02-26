@@ -46,7 +46,7 @@ typedef struct command_list{
 #define SH_PROMPT "dsh3> "
 #define EXIT_CMD "exit"
 #define EXIT_SC     99
-
+#define CMD_ERR_EXECUTE "Error executing command: %s\n"
 //Standard Return Codes
 #define OK                       0
 #define WARN_NO_CMDS            -1
