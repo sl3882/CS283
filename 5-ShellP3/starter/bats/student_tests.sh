@@ -9,9 +9,8 @@
 ls | cat dshlib.h | wc -l
 EOF
 
-    # The expected output should be the count of `.c` files in the directory
-    # (Change `expected_output` based on the actual number of `.c` files in the directory)
-    expected_output="92"
+ stripped_output=$(echo "$output" | tr -d '[:space:]')
+    expected_output="92dsh3>dsh3>cmdloopreturned0"
 
     # Assertions
     [ "$status" -eq 0 ]
@@ -21,9 +20,9 @@ EOF
     run "./dsh" <<EOF
 echo Hello, World!
 EOF
-
+stripped_output=$(echo "$output" | tr -d '[:space:]')
     # Expected output
-    expected_output="Hello, World!"
+    expected_output="Hello, World!dsh3>dsh3>cmdloopreturned0"
 
     # Assertions
     [ "$status" -eq 0 ]
@@ -33,7 +32,7 @@ EOF
     run "./dsh" <<EOF
 nonexistentcommand
 EOF
-
+stripped_output=$(echo "$output" | tr -d '[:space:]')
     # Expected output should indicate the command was not found
     expected_output="Error executing command: nonexistentcommand"
 
