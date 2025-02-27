@@ -13,6 +13,7 @@ int exec_local_cmd_loop()
 {
     char cmd_line[SH_CMD_MAX];
     cmd_buff_t cmd_buff;
+    command_list_t cmd_list;
     int status;
 
     while (1)
@@ -41,43 +42,90 @@ int exec_local_cmd_loop()
             break;
         }
 
-        // Allocate command buffer
-        if ((status = alloc_cmd_buff(&cmd_buff)) != OK)
+        // Check for pipe characters
+        if (strchr(cmd_line, PIPE_CHAR) != NULL)
         {
-            printf("Memory allocation error\n");
-            continue;
-        }
-
-        // Build command buffer
-        if ((status = build_cmd_buff(cmd_line, &cmd_buff)) != OK)
-        {
-            if (status == ERR_TOO_MANY_COMMANDS)
+            // Handle pipeline command
+            if ((status = build_cmd_list(cmd_line, &cmd_list)) != OK)
             {
-                printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+                if (status == ERR_TOO_MANY_COMMANDS)
+                {
+                    printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+                }
+                free_cmd_list(&cmd_list);
+                continue;
             }
-            free_cmd_buff(&cmd_buff);
-            continue;
-        }
 
-        // Execute built-in commands
-        Built_In_Cmds bi_status = exec_built_in_cmd(&cmd_buff);
-        if (bi_status == BI_EXECUTED)
+            // Execute pipeline
+            if ((status = execute_pipeline(&cmd_list)) != OK)
+            {
+                printf(CMD_ERR_EXECUTE, cmd_line);
+            }
+
+            // Free command list
+            free_cmd_list(&cmd_list);
+        }
+        else
         {
+            // Handle single command
+            // Allocate command buffer
+            if ((status = alloc_cmd_buff(&cmd_buff)) != OK)
+            {
+                printf("Memory allocation error\n");
+                continue;
+            }
+
+            // Build command buffer
+            if ((status = build_cmd_buff(cmd_line, &cmd_buff)) != OK)
+            {
+                free_cmd_buff(&cmd_buff);
+                continue;
+            }
+
+            // Execute built-in commands
+            Built_In_Cmds bi_status = exec_built_in_cmd(&cmd_buff);
+            if (bi_status == BI_EXECUTED)
+            {
+                free_cmd_buff(&cmd_buff);
+                continue;
+            }
+            else if (bi_status == BI_CMD_EXIT)
+            {
+                free_cmd_buff(&cmd_buff);
+                break; // Exit the loop
+            }
+
+            // Execute external command
+            if ((status = exec_cmd(&cmd_buff)) != OK)
+            {
+                printf(CMD_ERR_EXECUTE, cmd_line);
+            }
+
+            // Free allocated command buffer
             free_cmd_buff(&cmd_buff);
-            continue;
         }
-
-        // Execute external command
-        if ((status = exec_cmd(&cmd_buff)) != OK)
-        {
-            printf(CMD_ERR_EXECUTE, cmd_line);
-        }
-
-        // Free allocated command buffer
-        free_cmd_buff(&cmd_buff);
     }
 
     return OK;
+}
+
+
+
+Built_In_Cmds match_command(const char *input)
+{
+    if (strcmp(input, EXIT_CMD) == 0)
+    {
+        return BI_CMD_EXIT;
+    }
+    else if (strcmp(input, "cd") == 0)
+    {
+        return BI_CMD_CD;
+    }
+    else if (strcmp(input, "dragon") == 0)
+    {
+        return BI_CMD_DRAGON;
+    }
+    return BI_NOT_BI;
 }
 
 int alloc_cmd_buff(cmd_buff_t *cmd_buff)
@@ -98,8 +146,12 @@ int alloc_cmd_buff(cmd_buff_t *cmd_buff)
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
     clear_cmd_buff(cmd_buff); // Clear the command buffer
-
-    char *token = strtok(cmd_line, " "); // Tokenize the command line
+    
+    // Copy the command line to the internal buffer
+    strncpy(cmd_buff->_cmd_buffer, cmd_line, SH_CMD_MAX - 1);
+    cmd_buff->_cmd_buffer[SH_CMD_MAX - 1] = '\0';
+    
+    char *token = strtok(cmd_buff->_cmd_buffer, " "); // Tokenize the command line
     while (token != NULL)
     {
         if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
@@ -145,36 +197,109 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff)
     }
     return OK;
 }
+
+
+
 Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
 {
-    // Check if the command is "cd"
-    if (strcmp(cmd->argv[0], "cd") == 0)
+    // Use match_command to identify the built-in command
+    Built_In_Cmds cmd_type = match_command(cmd->argv[0]);
+    
+    switch (cmd_type)
     {
-        // If there's an argument provided for cd
-        if (cmd->argc > 1)
-        {
-            // Change directory using chdir()
-            if (chdir(cmd->argv[1]) != 0)
+        case BI_CMD_CD:
+            // If there's an argument provided for cd
+            if (cmd->argc > 1)
             {
-                // Print error message if chdir fails
-                perror("cd");
+                // Change directory using chdir()
+                if (chdir(cmd->argv[1]) != 0)
+                {
+                    // Print error message if chdir fails
+                    perror("cd");
+                }
             }
-        }
-        // Return that we executed a built-in command
-        return BI_EXECUTED;
+            else
+            {
+                // If no argument provided, change to home directory
+                char *home = getenv("HOME");
+                if (home && chdir(home) != 0)
+                {
+                    perror("cd");
+                }
+            }
+            return BI_EXECUTED;
+        
+        case BI_CMD_EXIT:
+            return BI_CMD_EXIT;
+            
+        case BI_CMD_DRAGON:
+            printf("Rawr! 🐉\n");
+            return BI_EXECUTED;
+            
+        default:
+            return BI_NOT_BI;
     }
-    // Handle other built-in commands like exit
-    else if (strcmp(cmd->argv[0], EXIT_CMD) == 0)
-    {
-        return BI_CMD_EXIT;
-    }
-    else if (strcmp(cmd->argv[0], "dragon") == 0)
-    {
-        return BI_CMD_DRAGON;
-    }
-    // Not a built-in command
-    return BI_NOT_BI;
 }
+
+
+int build_cmd_list(char *cmd_line, command_list_t *clist)
+{
+    // Initialize command list
+    clist->num = 0;
+    
+    // Make a copy of cmd_line to avoid modifying the original
+    char *cmd_copy = strdup(cmd_line);
+    if (cmd_copy == NULL)
+    {
+        return ERR_MEMORY;
+    }
+    
+    // Split the command line by pipe character
+    char *token = strtok(cmd_copy, PIPE_STRING);
+    while (token != NULL && clist->num < CMD_MAX)
+    {
+        // Skip leading spaces
+        while (*token == SPACE_CHAR) token++;
+        
+        // Allocate memory for the command buffer
+        if (alloc_cmd_buff(&clist->commands[clist->num]) != OK)
+        {
+            free(cmd_copy);
+            return ERR_MEMORY;
+        }
+        
+        // Build the command buffer
+        if (build_cmd_buff(token, &clist->commands[clist->num]) != OK)
+        {
+            free(cmd_copy);
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+        
+        clist->num++;
+        token = strtok(NULL, PIPE_STRING);
+    }
+    
+    free(cmd_copy);
+    
+    // Check if we have too many commands
+    if (token != NULL && clist->num >= CMD_MAX)
+    {
+        return ERR_TOO_MANY_COMMANDS;
+    }
+    
+    return OK;
+}
+
+int free_cmd_list(command_list_t *clist)
+{
+    for (int i = 0; i < clist->num; i++)
+    {
+        free_cmd_buff(&clist->commands[i]);
+    }
+    clist->num = 0;
+    return OK;
+}
+
 
 int exec_cmd(cmd_buff_t *cmd)
 {
@@ -263,6 +388,17 @@ int execute_pipeline(command_list_t *clist)
                 close(pipes[j][1]);
             }
 
+            // Check for built-in commands first
+            Built_In_Cmds bi_status = exec_built_in_cmd(&clist->commands[i]);
+            if (bi_status == BI_EXECUTED)
+            {
+                exit(OK); // Exit with success if built-in command was executed
+            }
+            else if (bi_status == BI_CMD_EXIT)
+            {
+                exit(OK_EXIT); // Exit with special code for exit command
+            }
+
             // Execute the command
             if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) < 0)
             {
@@ -280,10 +416,18 @@ int execute_pipeline(command_list_t *clist)
     }
 
     // Wait for all child processes to finish
+    int exit_status = OK;
     for (int i = 0; i < clist->num; i++)
     {
-        waitpid(pids[i], NULL, 0);
+        int status;
+        waitpid(pids[i], &status, 0);
+        
+        // Check if any child exited with OK_EXIT status
+        if (WIFEXITED(status) && WEXITSTATUS(status) == OK_EXIT)
+        {
+            exit_status = OK_EXIT;
+        }
     }
 
-    return OK;
+    return exit_status;
 }
