@@ -81,6 +81,156 @@ int exec_local_cmd_loop()
     return OK;
 }
 
+int alloc_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    cmd_buff->_cmd_buffer = (char *)malloc(SH_CMD_MAX * sizeof(char)); // Allocate memory for command buffer
+    if (cmd_buff->_cmd_buffer == NULL)
+    {
+        return ERR_MEMORY; // Return error if memory allocation fails
+    }
+    cmd_buff->argc = 0; // Initialize argument count to 0
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL; // Initialize argument vector to NULL
+    }
+    return OK; // Return OK if successful
+}
+
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
+{
+    clear_cmd_buff(cmd_buff); // Clear the command buffer
+
+    char *token = strtok(cmd_line, " "); // Tokenize the command line
+    while (token != NULL)
+    {
+        if (cmd_buff->argc >= CMD_ARGV_MAX - 1)
+        {
+            return ERR_CMD_OR_ARGS_TOO_BIG; // Return error if too many arguments
+        }
+        cmd_buff->argv[cmd_buff->argc] = token; // Add token to argument vector
+        cmd_buff->argc++;
+        token = strtok(NULL, " ");
+    }
+    cmd_buff->argv[cmd_buff->argc] = NULL; // Null-terminate the argument vector
+    if (cmd_buff->argc == 0)
+    {
+        return WARN_NO_CMDS; // Return warning if no commands parsed
+    }
+    return OK;
+}
+
+int free_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    if (cmd_buff->_cmd_buffer != NULL)
+    {
+        free(cmd_buff->_cmd_buffer); // Free the command buffer
+        cmd_buff->_cmd_buffer = NULL;
+    }
+    cmd_buff->argc = 0; // Reset argument count to 0
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL; // Reset argument vector to NULL
+    }
+    return OK;
+}
+
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
+{
+    // Check if the command is "cd"
+    if (strcmp(cmd->argv[0], "cd") == 0)
+    {
+        // If there's an argument provided for cd
+        if (cmd->argc > 1)
+        {
+            // Change directory using chdir()
+            if (chdir(cmd->argv[1]) != 0)
+            {
+                // Print error message if chdir fails
+                perror("cd");
+            }
+        }
+        // Return that we executed a built-in command
+        return BI_EXECUTED;
+    }
+    // Handle other built-in commands like exit
+    else if (strcmp(cmd->argv[0], EXIT_CMD) == 0)
+    {
+        return BI_CMD_EXIT;
+    }
+    else if (strcmp(cmd->argv[0], "dragon") == 0)
+    {
+        return BI_CMD_DRAGON;
+    }
+    // Not a built-in command
+    return BI_NOT_BI;
+}
+
+int free_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    if (cmd_buff->_cmd_buffer != NULL)
+    {
+        free(cmd_buff->_cmd_buffer); // Free the command buffer
+        cmd_buff->_cmd_buffer = NULL;
+    }
+    cmd_buff->argc = 0; // Reset argument count to 0
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL; // Reset argument vector to NULL
+    }
+    return OK;
+}
+
+int exec_cmd(cmd_buff_t *cmd)
+{
+    pid_t pid;  // Process ID
+    int status; // Status of child process
+
+    pid = fork(); // Fork a new process
+    if (pid < 0)
+    {
+        perror("fork"); // Fork failed
+        return ERR_EXEC_CMD;
+    }
+    else if (pid == 0)
+    {
+        if (execvp(cmd->argv[0], cmd->argv) < 0)
+        {
+            perror("execvp"); // execvp failed
+            exit(ERR_EXEC_CMD);
+        }
+    }
+    else
+    {
+        waitpid(pid, &status, 0); // Wait for the child process to complete
+        if (WIFEXITED(status))
+        {
+            return WEXITSTATUS(status); // Return the exit status of the child
+        }
+        else
+        {
+            return ERR_EXEC_CMD;
+        }
+    }
+    return OK;
+}
+
+int free_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    if (cmd_buff->_cmd_buffer != NULL)
+    {
+        free(cmd_buff->_cmd_buffer); // Free the command buffer
+        cmd_buff->_cmd_buffer = NULL;
+    }
+    cmd_buff->argc = 0; // Reset argument count to 0
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL; // Reset argument vector to NULL
+    }
+    return OK;
+}
+
+
+
 
 int execute_pipeline(command_list_t *clist) {
     if (clist->num == 0) {
