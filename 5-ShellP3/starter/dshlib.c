@@ -231,7 +231,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
         return BI_CMD_EXIT;
 
     case BI_CMD_DRAGON:
-        printf("Rawr! 🐉\n");
+        printf("%s", dragon_txt);
         return BI_EXECUTED;
 
     default:
