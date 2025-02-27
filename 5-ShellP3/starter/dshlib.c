@@ -210,8 +210,6 @@ int exec_cmd(cmd_buff_t *cmd)
     return OK;
 }
 
-
-
 int execute_pipeline(command_list_t *clist)
 {
     if (clist->num == 0)
@@ -223,7 +221,7 @@ int execute_pipeline(command_list_t *clist)
     int pipes[CMD_MAX - 1][2]; // Pipes between commands
     pid_t pids[CMD_MAX];       // Store child PIDs
 
-    // Create pipes
+    // Create pipes for each command in the pipeline
     for (int i = 0; i < clist->num - 1; i++)
     {
         if (pipe(pipes[i]) == -1)
@@ -233,7 +231,7 @@ int execute_pipeline(command_list_t *clist)
         }
     }
 
-    // Fork and execute each command
+    // Fork and execute each command in the pipeline
     for (int i = 0; i < clist->num; i++)
     {
         pids[i] = fork();
