@@ -9,6 +9,7 @@
 
 #include "dshlib.h"
 
+
 int exec_local_cmd_loop()
 {
     char cmd_line[SH_CMD_MAX];
@@ -52,6 +53,14 @@ int exec_local_cmd_loop()
                 {
                     printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
                 }
+                else if (status == WARN_NO_CMDS)
+                {
+                    printf("%s", CMD_WARN_NO_CMD);
+                }
+                else
+                {
+                    printf("Error building command list\n");
+                }
                 free_cmd_list(&cmd_list);
                 continue;
             }
@@ -59,7 +68,16 @@ int exec_local_cmd_loop()
             // Execute pipeline
             if ((status = execute_pipeline(&cmd_list)) != OK)
             {
-                printf(CMD_ERR_EXECUTE, cmd_line);
+                if (status != OK_EXIT)  // Don't show error for exit command
+                {
+                    printf(CMD_ERR_EXECUTE, cmd_line);
+                }
+                else
+                {
+                    // Exit was called from inside a pipeline
+                    free_cmd_list(&cmd_list);
+                    return OK;
+                }
             }
 
             // Free command list
@@ -78,6 +96,10 @@ int exec_local_cmd_loop()
             // Build command buffer
             if ((status = build_cmd_buff(cmd_line, &cmd_buff)) != OK)
             {
+                if (status == WARN_NO_CMDS)
+                {
+                    printf("%s", CMD_WARN_NO_CMD);
+                }
                 free_cmd_buff(&cmd_buff);
                 continue;
             }
@@ -108,6 +130,8 @@ int exec_local_cmd_loop()
 
     return OK;
 }
+
+
 
 
 
@@ -242,53 +266,6 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
 }
 
 
-int build_cmd_list(char *cmd_line, command_list_t *clist)
-{
-    // Initialize command list
-    clist->num = 0;
-    
-    // Make a copy of cmd_line to avoid modifying the original
-    char *cmd_copy = strdup(cmd_line);
-    if (cmd_copy == NULL)
-    {
-        return ERR_MEMORY;
-    }
-    
-    // Split the command line by pipe character
-    char *token = strtok(cmd_copy, PIPE_STRING);
-    while (token != NULL && clist->num < CMD_MAX)
-    {
-        // Skip leading spaces
-        while (*token == SPACE_CHAR) token++;
-        
-        // Allocate memory for the command buffer
-        if (alloc_cmd_buff(&clist->commands[clist->num]) != OK)
-        {
-            free(cmd_copy);
-            return ERR_MEMORY;
-        }
-        
-        // Build the command buffer
-        if (build_cmd_buff(token, &clist->commands[clist->num]) != OK)
-        {
-            free(cmd_copy);
-            return ERR_CMD_OR_ARGS_TOO_BIG;
-        }
-        
-        clist->num++;
-        token = strtok(NULL, PIPE_STRING);
-    }
-    
-    free(cmd_copy);
-    
-    // Check if we have too many commands
-    if (token != NULL && clist->num >= CMD_MAX)
-    {
-        return ERR_TOO_MANY_COMMANDS;
-    }
-    
-    return OK;
-}
 
 int free_cmd_list(command_list_t *clist)
 {
@@ -335,6 +312,7 @@ int exec_cmd(cmd_buff_t *cmd)
     return OK;
 }
 
+
 int execute_pipeline(command_list_t *clist)
 {
     if (clist->num == 0)
@@ -364,6 +342,12 @@ int execute_pipeline(command_list_t *clist)
         if (pids[i] == -1)
         {
             perror("fork");
+            // Close all previously created pipes
+            for (int j = 0; j < i; j++)
+            {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
             return ERR_MEMORY;
         }
 
@@ -372,13 +356,21 @@ int execute_pipeline(command_list_t *clist)
             // Redirect input if it's not the first command
             if (i > 0)
             {
-                dup2(pipes[i - 1][0], STDIN_FILENO); // Read from previous pipe
+                if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1)
+                {
+                    perror("dup2");
+                    exit(ERR_EXEC_CMD);
+                }
             }
 
             // Redirect output if it's not the last command
             if (i < clist->num - 1)
             {
-                dup2(pipes[i][1], STDOUT_FILENO); // Write to next pipe
+                if (dup2(pipes[i][1], STDOUT_FILENO) == -1)
+                {
+                    perror("dup2");
+                    exit(ERR_EXEC_CMD);
+                }
             }
 
             // Close all pipes in the child process
@@ -431,3 +423,86 @@ int execute_pipeline(command_list_t *clist)
 
     return exit_status;
 }
+
+
+int build_cmd_list(char *cmd_line, command_list_t *clist)
+{
+    // Initialize command list
+    clist->num = 0;
+    
+    // Make a copy of cmd_line to avoid modifying the original
+    char *cmd_copy = strdup(cmd_line);
+    if (cmd_copy == NULL)
+    {
+        return ERR_MEMORY;
+    }
+    
+    char *saveptr;
+    // Split the command line by pipe character
+    char *token = strtok_r(cmd_copy, "|", &saveptr);
+    while (token != NULL && clist->num < CMD_MAX)
+    {
+        // Create a temporary working copy of the token
+        char *tmp = strdup(token);
+        if (tmp == NULL)
+        {
+            free(cmd_copy);
+            return ERR_MEMORY;
+        }
+        
+        // Trim leading and trailing spaces
+        char *start = tmp;
+        while (*start && isspace(*start)) start++;
+        
+        char *end = start + strlen(start) - 1;
+        while (end > start && isspace(*end)) *end-- = '\0';
+        
+        // Skip if empty after trimming
+        if (*start == '\0')
+        {
+            free(tmp);
+            token = strtok_r(NULL, "|", &saveptr);
+            continue;
+        }
+        
+        // Allocate memory for the command buffer
+        if (alloc_cmd_buff(&clist->commands[clist->num]) != OK)
+        {
+            free(tmp);
+            free(cmd_copy);
+            return ERR_MEMORY;
+        }
+        
+        // Build the command buffer
+        if (build_cmd_buff(start, &clist->commands[clist->num]) != OK)
+        {
+            free(tmp);
+            free(cmd_copy);
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+        
+        clist->num++;
+        free(tmp);
+        token = strtok_r(NULL, "|", &saveptr);
+    }
+    
+    free(cmd_copy);
+    
+    // Check if we have too many commands
+    if (token != NULL && clist->num >= CMD_MAX)
+    {
+        return ERR_TOO_MANY_COMMANDS;
+    }
+    
+    return OK;
+}
+
+
+
+
+
+
+
+
+
+
