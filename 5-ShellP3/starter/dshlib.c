@@ -212,78 +212,105 @@ int exec_cmd(cmd_buff_t *cmd)
 
 int execute_pipeline(command_list_t *clist)
 {
-    if (clist->num == 0)
+    if (clist == NULL || clist->num <= 0)
     {
-        fprintf(stderr, CMD_WARN_NO_CMD);
         return WARN_NO_CMDS;
     }
 
-    int pipes[CMD_MAX - 1][2]; // Pipes between commands
-    pid_t pids[CMD_MAX];       // Store child PIDs
+    int pipes[clist->num - 1][2]; // Array of pipes
+    pid_t pids[clist->num];       // Array to store process IDs
+    int pipeline_status = OK;     // Track overall pipeline status
 
-    // Create pipes for each command in the pipeline
+    // Create all necessary pipes
     for (int i = 0; i < clist->num - 1; i++)
     {
         if (pipe(pipes[i]) == -1)
         {
             perror("pipe");
-            return ERR_MEMORY;
+            return ERR_EXEC_CMD;
         }
     }
 
-    // Fork and execute each command in the pipeline
+    // Create processes for each command
     for (int i = 0; i < clist->num; i++)
     {
         pids[i] = fork();
-
         if (pids[i] == -1)
         {
             perror("fork");
-            return ERR_MEMORY;
+
+            // Clean up pipes and kill any already forked children
+            for (int j = 0; j < clist->num - 1; j++)
+            {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            for (int j = 0; j < i; j++)
+            {
+                kill(pids[j], SIGTERM);
+                waitpid(pids[j], NULL, 0);
+            }
+            return ERR_EXEC_CMD;
         }
 
         if (pids[i] == 0)
         { // Child process
-            // Redirect input if not the first command
+            // Set up input pipe for all except first process
             if (i > 0)
             {
-                dup2(pipes[i - 1][0], STDIN_FILENO); // Read from previous pipe
+                if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1)
+                {
+                    perror("dup2 (stdin)");
+                    exit(EXIT_FAILURE);
+                }
             }
 
-            // Redirect output if not the last command
+            // Set up output pipe for all except last process
             if (i < clist->num - 1)
             {
-                dup2(pipes[i][1], STDOUT_FILENO); // Write to next pipe
+                if (dup2(pipes[i][1], STDOUT_FILENO) == -1)
+                {
+                    perror("dup2 (stdout)");
+                    exit(EXIT_FAILURE);
+                }
             }
 
-            // Close all pipes in the child process after duplication
+            // Close all pipe ends in child
             for (int j = 0; j < clist->num - 1; j++)
             {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
 
-            // Execute the command
-            if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) < 0)
-            {
-                perror("execvp");
-                exit(ERR_EXEC_CMD);
-            }
+            // Execute command
+            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            printf(CMD_ERR_EXECUTE, clist->commands[i].argv[0]); // Print error message if execvp fails
+            exit(EXIT_FAILURE);
         }
     }
 
-    // Parent process: Close all pipe ends
+    // Parent process: close all pipe ends
     for (int i = 0; i < clist->num - 1; i++)
     {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
 
-    // Wait for all children to finish
+    // Wait for all children and check their status
+    int status;
     for (int i = 0; i < clist->num; i++)
     {
-        waitpid(pids[i], NULL, 0);
+        if (waitpid(pids[i], &status, 0) == -1)
+        {
+            perror("waitpid");
+            pipeline_status = ERR_EXEC_CMD;
+        }
+        else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        {
+            // Command failed or terminated abnormally
+            pipeline_status = ERR_EXEC_CMD; // Mark the whole pipeline as failed
+        }
     }
 
-    return OK;
+    return pipeline_status;
 }
