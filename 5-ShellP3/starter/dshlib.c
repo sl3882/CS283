@@ -8,8 +8,78 @@
 #include <sys/wait.h>
 
 #include "dshlib.h"
-#include "dragon.txt"
 
+
+int exec_local_cmd_loop()
+{
+    char cmd_line[SH_CMD_MAX];
+    cmd_buff_t cmd_buff;
+    int status;
+
+    while (1)
+    {
+        printf("%s", SH_PROMPT);
+        
+        if (fgets(cmd_line, sizeof(cmd_line), stdin) == NULL)
+        {
+            printf("\n");
+            break;
+        }
+
+        // Remove trailing newline
+        cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+        // Check if input is empty
+        if (strlen(cmd_line) == 0)
+        {
+            printf("%s", CMD_WARN_NO_CMD);
+            continue;
+        }
+
+        // Exit condition
+        if (strcmp(cmd_line, EXIT_CMD) == 0)
+        {
+            break;
+        }
+
+        // Allocate command buffer
+        if ((status = alloc_cmd_buff(&cmd_buff)) != OK)
+        {
+            printf("Memory allocation error\n");
+            continue;
+        }
+
+        // Build command buffer
+        if ((status = build_cmd_buff(cmd_line, &cmd_buff)) != OK)
+        {
+            if (status == ERR_TOO_MANY_COMMANDS)
+            {
+                printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            }
+            free_cmd_buff(&cmd_buff);
+            continue;
+        }
+
+        // Execute built-in commands
+        Built_In_Cmds bi_status = exec_built_in_cmd(&cmd_buff);
+        if (bi_status == BI_EXECUTED)
+        {
+            free_cmd_buff(&cmd_buff);
+            continue;
+        }
+
+        // Execute external command
+        if ((status = exec_cmd(&cmd_buff)) != OK)
+        {
+            printf(CMD_ERR_EXECUTE, cmd_line);
+        }
+
+        // Free allocated command buffer
+        free_cmd_buff(&cmd_buff);
+    }
+
+    return OK;
+}
 
 
 int execute_pipeline(command_list_t *clist) {
