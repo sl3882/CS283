@@ -37,8 +37,6 @@ EOF
 ls --invalid-option
 EOF
 
-
-
     # Check if the output contains an error message
     [[ "$output" == *"Failed to execute command"* ]] || [[ "$output" == *"execvp"* ]]
 }
