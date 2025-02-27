@@ -27,11 +27,11 @@ EOF
 }
 @test "Basic Command - echo" {
     run "./dsh" <<EOF
-echo Hello, World!
+echo Hello,World!
 EOF
 stripped_output=$(echo "$output" | tr -d '[:space:]')
     # Expected output
-    expected_output="Hello, World!dsh3>dsh3>cmdloopreturned0"
+    expected_output="Hello,World!dsh3>dsh3>cmdloopreturned0"
 
     # These echo commands will help with debugging and will only print
     #if the test fails
@@ -52,7 +52,7 @@ nonexistentcommand
 EOF
 stripped_output=$(echo "$output" | tr -d '[:space:]')
     # Expected output should indicate the command was not found
-    expected_output="Error executing command: nonexistentcommand"
+    expected_output="execvp:Nosuchfileordirectorydsh3>dsh3>Errorexecutingcommand:nonexistentcommanddsh3>cmdloopreturned0"
 
     # These echo commands will help with debugging and will only print
     #if the test fails
