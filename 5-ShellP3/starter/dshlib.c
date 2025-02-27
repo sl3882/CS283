@@ -133,7 +133,19 @@ int free_cmd_buff(cmd_buff_t *cmd_buff)
     }
     return OK;
 }
-
+int clear_cmd_buff(cmd_buff_t *cmd_buff)
+{
+    cmd_buff->argc = 0; // Reset argument count to 0
+    for (int i = 0; i < CMD_ARGV_MAX; i++)
+    {
+        cmd_buff->argv[i] = NULL; // Reset argument vector to NULL
+    }
+    if (cmd_buff->_cmd_buffer != NULL)
+    {
+        cmd_buff->_cmd_buffer[0] = '\0'; // Clear the command buffer
+    }
+    return OK;
+}
 Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
 {
     // Check if the command is "cd"
