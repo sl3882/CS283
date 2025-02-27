@@ -212,80 +212,63 @@ int exec_cmd(cmd_buff_t *cmd)
 
 int execute_pipeline(command_list_t *clist)
 {
-    if (clist == NULL || clist->num <= 0)
+    if (clist->num == 0)
     {
+        fprintf(stderr, CMD_WARN_NO_CMD);
         return WARN_NO_CMDS;
     }
 
-    int pipes[clist->num - 1][2]; // Array of pipes
-    pid_t pids[clist->num];       // Array to store process IDs
-    int pipeline_status = OK;     // Track overall pipeline status
+    int pipes[CMD_MAX - 1][2]; // Pipes for each command in the pipeline
+    pid_t pids[CMD_MAX];       // Child processes
 
-    // Create all necessary pipes
+    // Create pipes for each command in the pipeline
     for (int i = 0; i < clist->num - 1; i++)
     {
         if (pipe(pipes[i]) == -1)
         {
             perror("pipe");
-            return ERR_EXEC_CMD;
+            return ERR_MEMORY;
         }
     }
 
-    // Create processes for each command
+    // Execute each command in the pipeline
     for (int i = 0; i < clist->num; i++)
     {
         pids[i] = fork();
+
         if (pids[i] == -1)
         {
             perror("fork");
-
-            // Clean up pipes and kill any already forked children
-            for (int j = 0; j < clist->num - 1; j++)
-            {
-                close(pipes[j][0]);
-                close(pipes[j][1]);
-            }
-            for (int j = 0; j < i; j++)
-            {
-                kill(pids[j], SIGTERM);
-                waitpid(pids[j], NULL, 0);
-            }
-            return ERR_EXEC_CMD;
+            return ERR_MEMORY;
         }
 
         if (pids[i] == 0)
         { // Child process
-            // Set up input pipe for all except first process
+            // Redirect input if it's not the first command
             if (i > 0)
             {
-                if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1)
-                {
-                    perror("dup2 (stdin)");
-                    exit(EXIT_FAILURE);
-                }
+                dup2(pipes[i - 1][0], STDIN_FILENO); // Read from previous pipe
             }
 
-            // Set up output pipe for all except last process
+            // Redirect output if it's not the last command
             if (i < clist->num - 1)
             {
-                if (dup2(pipes[i][1], STDOUT_FILENO) == -1)
-                {
-                    perror("dup2 (stdout)");
-                    exit(EXIT_FAILURE);
-                }
+                dup2(pipes[i][1], STDOUT_FILENO); // Write to next pipe
             }
 
-            // Close all pipe ends in child
+            // Close all pipes in the child process
             for (int j = 0; j < clist->num - 1; j++)
             {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
 
-            // Execute command
-            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
-            printf(CMD_ERR_EXECUTE, clist->commands[i].argv[0]); // Print error message if execvp fails
-            exit(EXIT_FAILURE);
+            // Execute the command
+            if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) < 0)
+            {
+                perror("execvp");
+                exit(ERR_EXEC_CMD);
+            }
         }
     }
 
@@ -296,21 +279,11 @@ int execute_pipeline(command_list_t *clist)
         close(pipes[i][1]);
     }
 
-    // Wait for all children and check their status
-    int status;
+    // Wait for all child processes to finish
     for (int i = 0; i < clist->num; i++)
     {
-        if (waitpid(pids[i], &status, 0) == -1)
-        {
-            perror("waitpid");
-            pipeline_status = ERR_EXEC_CMD;
-        }
-        else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        {
-            // Command failed or terminated abnormally
-            pipeline_status = ERR_EXEC_CMD; // Mark the whole pipeline as failed
-        }
+        waitpid(pids[i], NULL, 0);
     }
 
-    return pipeline_status;
+    return OK;
 }
