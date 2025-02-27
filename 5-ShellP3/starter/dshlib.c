@@ -9,7 +9,6 @@
 
 #include "dshlib.h"
 
-
 int exec_local_cmd_loop()
 {
     char cmd_line[SH_CMD_MAX];
@@ -19,7 +18,7 @@ int exec_local_cmd_loop()
     while (1)
     {
         printf("%s", SH_PROMPT);
-        
+
         if (fgets(cmd_line, sizeof(cmd_line), stdin) == NULL)
         {
             printf("\n");
@@ -177,7 +176,6 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
     return BI_NOT_BI;
 }
 
-
 int exec_cmd(cmd_buff_t *cmd)
 {
     pid_t pid;  // Process ID
@@ -212,48 +210,54 @@ int exec_cmd(cmd_buff_t *cmd)
     return OK;
 }
 
-
-
-
-
-int execute_pipeline(command_list_t *clist) {
-    if (clist->num == 0) {
+int execute_pipeline(command_list_t *clist)
+{
+    if (clist->num == 0)
+    {
         fprintf(stderr, CMD_WARN_NO_CMD);
         return WARN_NO_CMDS;
     }
-    
+
     int pipes[CMD_MAX - 1][2]; // Pipes between commands
     pid_t pids[CMD_MAX];       // Store child PIDs
 
     // Create pipes
-    for (int i = 0; i < clist->num - 1; i++) {
-        if (pipe(pipes[i]) == -1) {
+    for (int i = 0; i < clist->num - 1; i++)
+    {
+        if (pipe(pipes[i]) == -1)
+        {
             perror("pipe");
             return ERR_MEMORY;
         }
     }
 
     // Fork and execute each command
-    for (int i = 0; i < clist->num; i++) {
+    for (int i = 0; i < clist->num; i++)
+    {
         pids[i] = fork();
 
-        if (pids[i] == -1) {
+        if (pids[i] == -1)
+        {
             perror("fork");
             return ERR_MEMORY;
         }
 
-        if (pids[i] == 0) {  // Child process
+        if (pids[i] == 0)
+        { // Child process
             // Redirect input if not the first command
-            if (i > 0) {
+            if (i > 0)
+            {
                 dup2(pipes[i - 1][0], STDIN_FILENO);
             }
             // Redirect output if not the last command
-            if (i < clist->num - 1) {
+            if (i < clist->num - 1)
+            {
                 dup2(pipes[i][1], STDOUT_FILENO);
             }
 
             // Close all pipe FDs (only need stdin/stdout now)
-            for (int j = 0; j < clist->num - 1; j++) {
+            for (int j = 0; j < clist->num - 1; j++)
+            {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
@@ -266,13 +270,93 @@ int execute_pipeline(command_list_t *clist) {
     }
 
     // Close all pipes in parent
-    for (int i = 0; i < clist->num - 1; i++) {
+    for (int i = 0; i < clist->num - 1; i++)
+    {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
 
     // Wait for all children
-    for (int i = 0; i < clist->num; i++) {
+    for (int i = 0; i < clist->num; i++)
+    {
+        waitpid(pids[i], NULL, 0);
+    }
+
+    return OK;
+}
+
+int execute_pipeline(command_list_t *clist)
+{
+    if (clist->num == 0)
+    {
+        fprintf(stderr, CMD_WARN_NO_CMD);
+        return WARN_NO_CMDS;
+    }
+
+    int pipes[CMD_MAX - 1][2]; // Pipes between commands
+    pid_t pids[CMD_MAX];       // Store child PIDs
+
+    // Create pipes
+    for (int i = 0; i < clist->num - 1; i++)
+    {
+        if (pipe(pipes[i]) == -1)
+        {
+            perror("pipe");
+            return ERR_MEMORY;
+        }
+    }
+
+    // Fork and execute each command
+    for (int i = 0; i < clist->num; i++)
+    {
+        pids[i] = fork();
+
+        if (pids[i] == -1)
+        {
+            perror("fork");
+            return ERR_MEMORY;
+        }
+
+        if (pids[i] == 0)
+        { // Child process
+            // Redirect input if not the first command
+            if (i > 0)
+            {
+                dup2(pipes[i - 1][0], STDIN_FILENO); // Read from previous pipe
+            }
+
+            // Redirect output if not the last command
+            if (i < clist->num - 1)
+            {
+                dup2(pipes[i][1], STDOUT_FILENO); // Write to next pipe
+            }
+
+            // Close all pipes in the child process after duplication
+            for (int j = 0; j < clist->num - 1; j++)
+            {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+
+            // Execute the command
+            if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) < 0)
+            {
+                perror("execvp");
+                exit(ERR_EXEC_CMD);
+            }
+        }
+    }
+
+    // Parent process: Close all pipe ends
+    for (int i = 0; i < clist->num - 1; i++)
+    {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
+    // Wait for all children to finish
+    for (int i = 0; i < clist->num; i++)
+    {
         waitpid(pids[i], NULL, 0);
     }
 
