@@ -4,7 +4,14 @@
 # 
 # Create your unit tests suit in this file
 
+@test "Example: check ls runs without errors" {
+    run ./dsh <<EOF                
+ls
+EOF
 
+    # Assertions
+    [ "$status" -eq 0 ]
+}
 
 
 @test "Single Pipe Redirection" {
@@ -13,8 +20,7 @@ echo Hello | wc -c
 EOF
     stripped_output=$(echo "$output" | tr -d '[:space:]')
     expected_output="6dsh3>dsh3>cmdloopreturned0"
-    # These echo commands will help with debugging and will only print
-    # if the test fails
+
     echo "Captured stdout:" 
     echo "Output: $output"
     echo "Exit Status: $status"
@@ -66,8 +72,7 @@ EOF
     stripped_output=$(echo "$output" | tr -d '[:space:]')
     expected_output="92dsh3>dsh3>cmdloopreturned0"
 
-    # These echo commands will help with debugging and will only print
-    #if the test fails
+
     echo "Captured stdout:" 
     echo "Output: $output"
     echo "Exit Status: $status"
@@ -87,8 +92,7 @@ stripped_output=$(echo "$output" | tr -d '[:space:]')
     # Expected output
     expected_output="Hello,World!dsh3>dsh3>cmdloopreturned0"
 
-    # These echo commands will help with debugging and will only print
-    #if the test fails
+
     echo "Captured stdout:" 
     echo "Output: $output"
     echo "Exit Status: $status"
@@ -108,8 +112,7 @@ stripped_output=$(echo "$output" | tr -d '[:space:]')
     # Expected output should indicate the command was not found
     expected_output="execvp:Nosuchfileordirectorydsh3>dsh3>Errorexecutingcommand:nonexistentcommanddsh3>cmdloopreturned0"
 
-    # These echo commands will help with debugging and will only print
-    #if the test fails
+
     echo "Captured stdout:" 
     echo "Output: $output"
     echo "Exit Status: $status"
