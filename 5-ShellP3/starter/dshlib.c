@@ -214,20 +214,6 @@ int exec_cmd(cmd_buff_t *cmd)
     return OK;
 }
 
-int free_cmd_buff(cmd_buff_t *cmd_buff)
-{
-    if (cmd_buff->_cmd_buffer != NULL)
-    {
-        free(cmd_buff->_cmd_buffer); // Free the command buffer
-        cmd_buff->_cmd_buffer = NULL;
-    }
-    cmd_buff->argc = 0; // Reset argument count to 0
-    for (int i = 0; i < CMD_ARGV_MAX; i++)
-    {
-        cmd_buff->argv[i] = NULL; // Reset argument vector to NULL
-    }
-    return OK;
-}
 
 
 
