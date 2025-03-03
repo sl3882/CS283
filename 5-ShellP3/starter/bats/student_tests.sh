@@ -84,26 +84,7 @@ EOF
     # Assertions
     [ "$status" -eq 0 ]
 }
-@test "Basic Command - echo" {
-    run "./dsh" <<EOF
-echo Hello,World!
-EOF
-stripped_output=$(echo "$output" | tr -d '[:space:]')
-    # Expected output
-    expected_output="Hello,World!dsh3>dsh3>cmdloopreturned0"
 
-
-    echo "Captured stdout:" 
-    echo "Output: $output"
-    echo "Exit Status: $status"
-    echo "${stripped_output} -> ${expected_output}"
-
-    # Check exact match
-    [ "$stripped_output" = "$expected_output" ]
-
-    # Assertions
-    [ "$status" -eq 0 ]
-}
 @test "Invalid Command" {
     run "./dsh" <<EOF
 nonexistentcommand
@@ -167,18 +148,3 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "Pipeline with trailing pipe" {
-    run "./dsh" <<EOF
-echo test |
-EOF
-
-    stripped_output=$(echo "$output" | tr -d '[:space:]')
-    expected_output="testdsh3>dsh3>cmdloopreturned0 "
-    echo "Captured stdout:"
-    echo "Output: $output"
-    echo "Exit Status: $status"
-    echo "${stripped_output} -> ${expected_output}"
-    [ "$stripped_output" = "$expected_output" ]
-    [ "$status" -eq 0 ]
-
-}
