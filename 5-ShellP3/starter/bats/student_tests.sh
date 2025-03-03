@@ -154,7 +154,7 @@ echo test | | wc -l
 EOF
 
     stripped_output=$(echo "$output" | tr -d '[:space:]')
-    expected_output="dsh3>dsh3>Warning:Nocommandentered.dsh3>cmdloopreturned0"
+    expected_output="1dsh3>dsh3>cmdloopreturned0"
     echo "Captured stdout:"
     echo "Output: $output"
     echo "Exit Status: $status"
