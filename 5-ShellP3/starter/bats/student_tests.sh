@@ -127,16 +127,42 @@ stripped_output=$(echo "$output" | tr -d '[:space:]')
 
 
 
-@test "Pipeline with leading pipe" {
+@test "Command with Error Handling" {
     run "./dsh" <<EOF
-| echo test
+cd /nonexistentdirectory
 EOF
+
     stripped_output=$(echo "$output" | tr -d '[:space:]')
-    expected_output="dsh3>dsh3>Warning:Nocommandentered.dsh3>cmdloopreturned0"
+    expected_output="cd:Nosuchfileordirectorydsh3>dsh3>cmdloopreturned0"
+
     echo "Captured stdout:"
     echo "Output: $output"
     echo "Exit Status: $status"
     echo "${stripped_output} -> ${expected_output}"
+
+    # Check exact match
     [ "$stripped_output" = "$expected_output" ]
+
+    # Assertions
+    [ "$status" -eq 0 ]
+}
+
+
+@test "Pipeline with Invalid Command" {
+    run "./dsh" <<EOF
+ls | nonexistentcommand | wc -l
+EOF
+    stripped_output=$(echo "$output" | tr -d '[:space:]')
+    expected_output="execvp: No such file or directorydsh3>dsh3>cmdloopreturned0"
+
+    echo "Captured stdout:"
+    echo "Output: $output"
+    echo "Exit Status: $status"
+    echo "${stripped_output} -> ${expected_output}"
+
+    # Check exact match
+    [ "$stripped_output" = "$expected_output" ]
+
+    # Assertions
     [ "$status" -eq 0 ]
 }
