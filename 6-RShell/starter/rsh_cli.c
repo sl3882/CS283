@@ -96,15 +96,15 @@ int exec_remote_cmd_loop(char *address, int port) {
         return ERR_RDSH_CLIENT;
     }
     
-    char *cmd_buff = malloc(COMMAND_BUFFER_SIZE);
-    char *rsp_buff = malloc(RESPONSE_BUFFER_SIZE);
+    char *cmd_buff = malloc(RDSH_COMM_BUFF_SZ);
+    char *rsp_buff = malloc(RDSH_COMM_BUFF_SZ);
     if (!cmd_buff || !rsp_buff) {
         return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_MEMORY);
     }
     
     while (1) {
         printf("rdsh> ");
-        if (!fgets(cmd_buff, COMMAND_BUFFER_SIZE, stdin)) {
+        if (!fgets(cmd_buff, RDSH_COMM_BUFF_SZ, stdin)) {
             break;
         }
         
@@ -119,7 +119,7 @@ int exec_remote_cmd_loop(char *address, int port) {
         }
         
         while (1) {
-            ssize_t recv_bytes = recv(cli_socket, rsp_buff, RESPONSE_BUFFER_SIZE, 0);
+            ssize_t recv_bytes = recv(cli_socket, rsp_buff, RDSH_COMM_BUFF_SZ, 0);
             if (recv_bytes < 0) {
                 perror("recv");
                 return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
