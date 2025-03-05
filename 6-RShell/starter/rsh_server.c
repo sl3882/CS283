@@ -454,7 +454,139 @@ int send_message_string(int cli_socket, char *buff) {
  *                  get this value. 
  */
 int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
-    return WARN_RDSH_NOT_IMPL;
+    if (clist->num == 0)  // If no commands are given
+    {
+        send_message_string(cli_sock, CMD_WARN_NO_CMD);  // Send warning message
+        return WARN_NO_CMDS;  // Return a warning code
+    }
+
+    int pipes[CMD_MAX - 1][2];  // Array to store pipe file descriptors
+    pid_t pids[CMD_MAX];  // Array to store process IDs
+
+    // Create pipes for each command in the pipeline
+    for (int i = 0; i < clist->num - 1; i++)
+    {
+        if (pipe(pipes[i]) == -1)  // If creating a pipe fails
+        {
+            send_message_string(cli_sock, "Pipe creation failed\n");
+            return ERR_MEMORY;  // Return an error code
+        }
+    }
+
+    // Fork a new process for each command in the pipeline
+    for (int i = 0; i < clist->num; i++)
+    {
+        pids[i] = fork();  // Create a new child process
+
+        if (pids[i] == -1)  // If forking fails
+        {
+            send_message_string(cli_sock, "Fork failed\n");
+            for (int j = 0; j < i; j++)  // Close all previously created pipes
+            {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            return ERR_MEMORY;  // Return an error code
+        }
+
+        if (pids[i] == 0)  // If we are in the child process
+        {
+            // Special handling for first and last commands in the pipeline
+            if (i == 0)  // First command in pipeline
+            {
+                // Use client socket as input
+                if (dup2(cli_sock, STDIN_FILENO) == -1)
+                {
+                    perror("dup2 stdin");
+                    exit(ERR_EXEC_CMD);
+                }
+            }
+            
+            if (i == clist->num - 1)  // Last command in pipeline
+            {
+                // Use client socket as output and error
+                if (dup2(cli_sock, STDOUT_FILENO) == -1 || 
+                    dup2(cli_sock, STDERR_FILENO) == -1)
+                {
+                    perror("dup2 stdout/stderr");
+                    exit(ERR_EXEC_CMD);
+                }
+            }
+
+            // Handle input/output for intermediate commands
+            if (i > 0)  // Not the first command
+            {
+                if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1)
+                {
+                    perror("dup2 input pipe");
+                    exit(ERR_EXEC_CMD);
+                }
+            }
+
+            if (i < clist->num - 1)  // Not the last command
+            {
+                if (dup2(pipes[i][1], STDOUT_FILENO) == -1)
+                {
+                    perror("dup2 output pipe");
+                    exit(ERR_EXEC_CMD);
+                }
+            }
+
+            // Close all pipes in the child process
+            for (int j = 0; j < clist->num - 1; j++)
+            {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+
+            // Execute the built-in command if applicable
+            Built_In_Cmds bi_status = exec_built_in_cmd(&clist->commands[i]);
+            if (bi_status == BI_EXECUTED)  // If the built-in command was executed
+            {
+                exit(OK);  // Exit the child process with success
+            }
+            else if (bi_status == BI_CMD_EXIT)  // If the built-in command was exit
+            {
+                exit(OK_EXIT);  // Exit the child process with the exit code
+            }
+
+            // If it's not a built-in command, execute it using execvp
+            if (execvp(clist->commands[i].argv[0], clist->commands[i].argv) < 0)
+            {
+                perror("execvp");  // Print an error message
+                exit(ERR_EXEC_CMD);  // Exit the child process with an error code
+            }
+        }
+    }
+
+    // Close all pipes in the parent process
+    for (int i = 0; i < clist->num - 1; i++)
+    {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
+    int exit_status = OK;  // Variable to track the exit status of the pipeline
+    int last_status = OK;  // Store the status of the last command
+    // Wait for all child processes to finish
+    for (int i = 0; i < clist->num; i++)
+    {
+        int status;
+        waitpid(pids[i], &status, 0);  // Wait for the child process
+
+        if (i == clist->num - 1)  // For the last command
+        {
+            last_status = WEXITSTATUS(status);  // Store the exit status of the last command
+        }
+
+        if (WIFEXITED(status) && WEXITSTATUS(status) == OK_EXIT)  // If any child process exits with OK_EXIT
+        {
+            exit_status = OK_EXIT;  // Set the overall exit status to OK_EXIT
+        }
+    }
+
+    // If exit_status is OK, return the last command's exit status
+    return (exit_status == OK) ? last_status : exit_status;
 }
 
 /**************   OPTIONAL STUFF  ***************/
