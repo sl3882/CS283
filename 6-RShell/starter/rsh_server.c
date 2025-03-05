@@ -114,8 +114,36 @@ int stop_server(int svr_socket){
  *                               bind(), or listen() call fails. 
  * 
  */
-int boot_server(char *ifaces, int port){
-    return WARN_RDSH_NOT_IMPL;
+int boot_server(char *ifaces, int port) {
+    int svr_socket;
+    struct sockaddr_in server_addr;
+
+    svr_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (svr_socket < 0) {
+        perror("Error creating socket");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    int enable = 1;
+    setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ifaces);
+
+    if (bind(svr_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Error binding socket");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    if (listen(svr_socket, 5) < 0) {
+        perror("Error listening on socket");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    return svr_socket;
 }
 
 /*
@@ -159,8 +187,27 @@ int boot_server(char *ifaces, int port){
  *                connections, and negative values terminate the server. 
  * 
  */
-int process_cli_requests(int svr_socket){
-    return WARN_RDSH_NOT_IMPL;
+int process_cli_requests(int svr_socket) {
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    int cli_socket;
+
+    while (1) {
+        cli_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &client_len);
+        if (cli_socket < 0) {
+            perror("Error accepting client connection");
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        int rc = exec_client_requests(cli_socket);
+        if (rc == OK_EXIT) {
+            break;  // Stop server if client sends "stop-server"
+        }
+
+        close(cli_socket);  // Close client socket after processing
+    }
+
+    return OK_EXIT;
 }
 
 /*
@@ -205,9 +252,30 @@ int process_cli_requests(int svr_socket){
  *                or receive errors. 
  */
 int exec_client_requests(int cli_socket) {
-    return WARN_RDSH_NOT_IMPL;
-}
+    char buffer[RDSH_COMM_BUFF_SZ];
+    int bytes_received;
 
+    bytes_received = recv(cli_socket, buffer, RDSH_COMM_BUFF_SZ, 0);
+    if (bytes_received < 0) {
+        perror("Error receiving data");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    buffer[bytes_received] = '\0';  // Null-terminate the string
+    if (strcmp(buffer, "stop-server") == 0) {
+        send_message_eof(cli_socket);
+        return OK_EXIT;  // Stop server if client sends "stop-server"
+    } else if (strcmp(buffer, "exit") == 0) {
+        send_message_eof(cli_socket);
+        return OK;  // Continue to accept another client
+    }
+
+    // Execute the command here (add your logic for command execution)
+    // For demonstration, just echo the command back
+    send_message_string(cli_socket, buffer);
+
+    return OK;  // Continue processing
+}
 /*
  * send_message_eof(cli_socket)
  *      cli_socket:  The server-side socket that is connected to the client
@@ -222,8 +290,13 @@ int exec_client_requests(int cli_socket) {
  *      ERR_RDSH_COMMUNICATION:  The send() socket call returned an error or if
  *           we were unable to send the EOF character. 
  */
-int send_message_eof(int cli_socket){
-    return WARN_RDSH_NOT_IMPL;
+int send_message_eof(int cli_socket) {
+    char eof_message = 4;  // EOF character
+    if (send(cli_socket, &eof_message, sizeof(eof_message), 0) < 0) {
+        perror("Error sending EOF");
+        return ERR_RDSH_COMMUNICATION;
+    }
+    return OK;
 }
 
 /*
@@ -244,8 +317,14 @@ int send_message_eof(int cli_socket){
  *      ERR_RDSH_COMMUNICATION:  The send() socket call returned an error or if
  *           we were unable to send the message followed by the EOF character. 
  */
-int send_message_string(int cli_socket, char *buff){
-    return WARN_RDSH_NOT_IMPL;
+int send_message_string(int cli_socket, char *buff) {
+    int len = strlen(buff) + 1;  // Including null terminator
+    if (send(cli_socket, buff, len, 0) < 0) {
+        perror("Error sending message");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    return send_message_eof(cli_socket);  // Send EOF after the message
 }
 
 
