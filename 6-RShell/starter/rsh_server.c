@@ -118,25 +118,41 @@ int boot_server(char *ifaces, int port) {
     int svr_socket;
     struct sockaddr_in server_addr;
 
+    // Create a server socket
     svr_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (svr_socket < 0) {
         perror("Error creating socket");
         return ERR_RDSH_COMMUNICATION;
     }
 
+    // Enable socket reuse to avoid "Address already in use" errors during development
     int enable = 1;
-    setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+    if (setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        perror("Error setting socket option");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
 
+    // Prepare the server address structure
+    memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(ifaces);
 
+    // Convert the interface string to network address
+    if (inet_pton(AF_INET, ifaces, &server_addr.sin_addr) <= 0) {
+        perror("Invalid interface address");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    // Bind the socket to the specified interface and port
     if (bind(svr_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Error binding socket");
         close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
     }
 
+    // Start listening for connections, with a backlog queue of 5
     if (listen(svr_socket, 5) < 0) {
         perror("Error listening on socket");
         close(svr_socket);
@@ -188,28 +204,32 @@ int boot_server(char *ifaces, int port) {
  * 
  */
 int process_cli_requests(int svr_socket) {
-    struct sockaddr_in client_addr;
-    socklen_t client_len = sizeof(client_addr);
     int cli_socket;
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    int rc;
 
     while (1) {
-        cli_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &client_len);
+        // Accept a client connection
+        cli_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &client_addr_len);
+        
         if (cli_socket < 0) {
             perror("Error accepting client connection");
             return ERR_RDSH_COMMUNICATION;
         }
 
-        int rc = exec_client_requests(cli_socket);
+        // Execute client requests
+        rc = exec_client_requests(cli_socket);
+
+        // Close the client socket
+        close(cli_socket);
+
+        // Check if we should stop the server
         if (rc == OK_EXIT) {
-            break;  // Stop server if client sends "stop-server"
+            return OK_EXIT;
         }
-
-        close(cli_socket);  // Close client socket after processing
     }
-
-    return OK_EXIT;
 }
-
 /*
  * exec_client_requests(cli_socket)
  *      cli_socket:  The server-side socket that is connected to the client
@@ -252,30 +272,90 @@ int process_cli_requests(int svr_socket) {
  *                or receive errors. 
  */
 int exec_client_requests(int cli_socket) {
-    char buffer[RDSH_COMM_BUFF_SZ];
-    int bytes_received;
-
-    bytes_received = recv(cli_socket, buffer, RDSH_COMM_BUFF_SZ, 0);
-    if (bytes_received < 0) {
-        perror("Error receiving data");
+    char *io_buff = malloc(RDSH_COMM_BUFF_SZ);
+    if (io_buff == NULL) {
+        perror("Memory allocation failed");
         return ERR_RDSH_COMMUNICATION;
     }
 
-    buffer[bytes_received] = '\0';  // Null-terminate the string
-    if (strcmp(buffer, "stop-server") == 0) {
-        send_message_eof(cli_socket);
-        return OK_EXIT;  // Stop server if client sends "stop-server"
-    } else if (strcmp(buffer, "exit") == 0) {
-        send_message_eof(cli_socket);
-        return OK;  // Continue to accept another client
+    while (1) {
+        // Clear the buffer
+        memset(io_buff, 0, RDSH_COMM_BUFF_SZ);
+
+        // Receive command from client
+        ssize_t bytes_received = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
+        
+        if (bytes_received <= 0) {
+            // Connection closed or error
+            free(io_buff);
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        // Ensure null-termination
+        io_buff[bytes_received] = '\0';
+
+        // Create command buffer to parse the received command
+        cmd_buff_t cmd_buff;
+        if (alloc_cmd_buff(&cmd_buff) != OK) {
+            send_message_string(cli_socket, "Memory allocation error\n");
+            continue;
+        }
+
+        // Build command buffer
+        if (build_cmd_buff(io_buff, &cmd_buff) != OK) {
+            send_message_string(cli_socket, "Invalid command\n");
+            free_cmd_buff(&cmd_buff);
+            continue;
+        }
+
+        // Check for stop-server command
+        if (strcmp(cmd_buff.argv[0], "stop-server") == 0) {
+            free_cmd_buff(&cmd_buff);
+            free(io_buff);
+            return OK_EXIT;
+        }
+
+        // Check for exit command
+        if (strcmp(cmd_buff.argv[0], "exit") == 0) {
+            free_cmd_buff(&cmd_buff);
+            send_message_eof(cli_socket);
+            break;
+        }
+
+        // Execute command
+        pid_t pid = fork();
+        if (pid < 0) {
+            send_message_string(cli_socket, "Fork failed\n");
+            free_cmd_buff(&cmd_buff);
+            continue;
+        }
+        else if (pid == 0) {
+            // Child process
+            dup2(cli_socket, STDOUT_FILENO);
+            dup2(cli_socket, STDERR_FILENO);
+            close(cli_socket);
+
+            if (execvp(cmd_buff.argv[0], cmd_buff.argv) < 0) {
+                perror("Exec failed");
+                exit(ERR_EXEC_CMD);
+            }
+        }
+        else {
+            // Parent process
+            int status;
+            waitpid(pid, &status, 0);
+            
+            // Send EOF to indicate command completion
+            send_message_eof(cli_socket);
+        }
+
+        free_cmd_buff(&cmd_buff);
     }
 
-    // Execute the command here (add your logic for command execution)
-    // For demonstration, just echo the command back
-    send_message_string(cli_socket, buffer);
-
-    return OK;  // Continue processing
+    free(io_buff);
+    return OK;
 }
+
 /*
  * send_message_eof(cli_socket)
  *      cli_socket:  The server-side socket that is connected to the client
@@ -291,11 +371,14 @@ int exec_client_requests(int cli_socket) {
  *           we were unable to send the EOF character. 
  */
 int send_message_eof(int cli_socket) {
-    char eof_message = 4;  // EOF character
-    if (send(cli_socket, &eof_message, sizeof(eof_message), 0) < 0) {
-        perror("Error sending EOF");
+    // Send the EOF character
+    ssize_t bytes_sent = send(cli_socket, &RDSH_EOF_CHAR, 1, 0);
+    
+    if (bytes_sent != 1) {
+        perror("Error sending EOF character");
         return ERR_RDSH_COMMUNICATION;
     }
+    
     return OK;
 }
 
@@ -318,13 +401,17 @@ int send_message_eof(int cli_socket) {
  *           we were unable to send the message followed by the EOF character. 
  */
 int send_message_string(int cli_socket, char *buff) {
-    int len = strlen(buff) + 1;  // Including null terminator
-    if (send(cli_socket, buff, len, 0) < 0) {
+    // Send the message string
+    size_t msg_len = strlen(buff);
+    ssize_t bytes_sent = send(cli_socket, buff, msg_len, 0);
+    
+    if (bytes_sent != msg_len) {
         perror("Error sending message");
         return ERR_RDSH_COMMUNICATION;
     }
-
-    return send_message_eof(cli_socket);  // Send EOF after the message
+    
+    // Send EOF character
+    return send_message_eof(cli_socket);
 }
 
 
