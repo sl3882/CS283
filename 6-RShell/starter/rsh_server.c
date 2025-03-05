@@ -622,10 +622,22 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
  *      BI_NOT_BI:  If the command is not "built-in" the BI_NOT_BI value is
  *                  returned. 
  */
-Built_In_Cmds rsh_match_command(const char *input)
-{
-    return BI_NOT_IMPLEMENTED;
-}
+
+
+
+
+
+
+// Built_In_Cmds rsh_match_command(const char *input)
+// {
+//     return BI_NOT_IMPLEMENTED;
+// }
+
+
+
+
+
+
 
 /*
  * rsh_built_in_cmd(cmd_buff_t *cmd)
@@ -659,7 +671,12 @@ Built_In_Cmds rsh_match_command(const char *input)
  *   AGAIN - THIS IS TOTALLY OPTIONAL IF YOU HAVE OR WANT TO HANDLE BUILT-IN
  *   COMMANDS DIFFERENTLY. 
  */
-Built_In_Cmds rsh_built_in_cmd(cmd_buff_t *cmd)
-{
-    return BI_NOT_IMPLEMENTED;
-}
+
+
+
+
+
+// Built_In_Cmds rsh_built_in_cmd(cmd_buff_t *cmd)
+// {
+//     return BI_NOT_IMPLEMENTED;
+// }
