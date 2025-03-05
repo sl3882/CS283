@@ -71,7 +71,7 @@ int exec_local_cmd_loop()
                 // If pipeline execution fails, print error
                 if (status != OK_EXIT)
                 {
-                    printf(CMD_ERR_EXECUTE, cmd_line);
+                    printf(CMD_ERR_EXECUTE);
                 }
                 else
                 {
@@ -118,7 +118,7 @@ int exec_local_cmd_loop()
             // Execute external command
             if ((status = exec_cmd(&cmd_buff)) != OK)
             {
-                printf(CMD_ERR_EXECUTE, cmd_line);  // Error executing external command
+                printf(CMD_ERR_EXECUTE);  // Error executing external command
             }
 
             free_cmd_buff(&cmd_buff);  // Free the command buffer after execution
