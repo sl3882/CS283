@@ -119,7 +119,8 @@ int exec_remote_cmd_loop(char *address, int port)
 
     // Enter infinite command loop
     while (1) {
-        printf("%s", SH_PROMPT);  // Print shell prompt
+        printf("%s", SH_PROMPT); // Print shell prompt
+        fflush(stdout);
 
         // Read command line from standard input
         if (fgets(cmd_line, sizeof(cmd_line), stdin) == NULL) {
@@ -138,14 +139,11 @@ int exec_remote_cmd_loop(char *address, int port)
 
         // Check for exit command
         if (strcmp(cmd_line, EXIT_CMD) == 0) {
+            // Send "exit" to the server to close the connection gracefully
+            if (send(cli_socket, cmd_line, strlen(cmd_line) + 1, 0) < 0) {
+                return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_COMMUNICATION);
+            }
             break;
-        }
-
-        // Special handling for stop-server command
-        if (strcmp(cmd_line, "stop-server") == 0) {
-            // Send the command and expect a specific return status
-            int exec_status = STOP_SERVER_SC;
-            return client_cleanup(cli_socket, request_buff, resp_buff, exec_status);
         }
 
         // Send command to server (including null byte)
@@ -153,33 +151,53 @@ int exec_remote_cmd_loop(char *address, int port)
             return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_COMMUNICATION);
         }
 
+        // Special handling for stop-server command
+        if (strcmp(cmd_line, "stop-server") == 0) {
+            // We've already sent the command, now we need to wait for the server to respond
+            // and then return with the special status code
+            // Note: we're not returning immediately, we need to get the server's response first
+        }
+
         // Receive response loop
-        while (1) {
+        is_eof = 0;
+        while (!is_eof) {
             recv_bytes = recv(cli_socket, resp_buff, RDSH_COMM_BUFF_SZ - 1, 0);
 
-            if (recv_bytes < 0) {
-                // Communication error
+            if (recv_bytes <= 0) {
+                // Server disconnected or error
+                if (recv_bytes == 0) {
+                    printf("%s", RCMD_SERVER_EXITED);
+                } else {
+                    perror("recv error");
+                }
                 return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_COMMUNICATION);
-            }
-
-            if (recv_bytes == 0) {
-                // Server disconnected
-                printf("%s", RCMD_SERVER_EXITED);
-                return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_CLIENT);
             }
 
             // Null-terminate the received buffer for safety
             resp_buff[recv_bytes] = '\0';
 
-            // Print received data
-            printf("%.*s", (int)recv_bytes, resp_buff);
-
-            // Check if this is the last transmission
-            is_eof = (resp_buff[recv_bytes - 1] == RDSH_EOF_CHAR) ? 1 : 0;
-
-            if (is_eof) {
-                break;  // Exit receive loop
+            // Check if this contains the EOF character anywhere in the buffer
+            for (int i = 0; i < recv_bytes; i++) {
+                if (resp_buff[i] == RDSH_EOF_CHAR) {
+                    // Found EOF character, don't print it
+                    // Print everything before the EOF character
+                    if (i > 0) {
+                        printf("%.*s", i, resp_buff);
+                    }
+                    is_eof = 1;
+                    break;
+                }
             }
+
+            // If we didn't find EOF, print the whole buffer
+            if (!is_eof) {
+                printf("%.*s", (int)recv_bytes, resp_buff);
+            }
+        }
+
+        // If we sent "stop-server", return with special status
+        if (strcmp(cmd_line, "stop-server") == 0) {
+            return client_cleanup(cli_socket, request_buff, resp_buff, STOP_SERVER_SC);
         }
     }
 
