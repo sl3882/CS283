@@ -57,12 +57,23 @@ int send_message_eof(int cli_socket) {
 }
 
 int send_message_string(int cli_socket, char *buff) {
-    int send_len = strlen(buff);
-    int sent_len = send(cli_socket, buff, send_len, 0);
-    if (sent_len != send_len) {
-        printf(CMD_ERR_RDSH_SEND, sent_len, send_len);
+    if (buff == NULL) {
         return ERR_RDSH_COMMUNICATION;
     }
+
+    // Append a newline character to the response
+    char response[RDSH_COMM_BUFF_SZ];
+    snprintf(response, RDSH_COMM_BUFF_SZ, "%s\n", buff);
+
+    // Send the response to the client
+    int send_len = strlen(response);
+    int sent_len = send(cli_socket, response, send_len, 0);
+    if (sent_len != send_len) {
+        perror("send");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    // Send EOF character to indicate end of message
     return send_message_eof(cli_socket);
 }
 

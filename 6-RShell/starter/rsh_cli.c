@@ -67,25 +67,25 @@ int exec_remote_cmd_loop(char *address, int port) {
         while (1) {
             memset(rsp_buff, 0, RDSH_COMM_BUFF_SZ);
             io_size = recv(cli_socket, rsp_buff, RDSH_COMM_BUFF_SZ - 1, 0);
-
+        
             if (io_size < 0) {
                 perror("recv");
                 return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
             }
-
+        
             if (io_size == 0) {
                 // Server closed connection
-                printf("%s", RCMD_SERVER_EXITED);
+                printf("%s\n", RCMD_SERVER_EXITED);  // Add newline for proper formatting
                 return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
             }
-
+        
             // Check for EOF character
             if (rsp_buff[io_size - 1] == RDSH_EOF_CHAR) {
                 rsp_buff[io_size - 1] = '\0';  // Replace EOF with null terminator
-                printf("%s", rsp_buff);
+                printf("%s", rsp_buff);  // Print the response (newline is already included)
                 break;
             } else {
-                printf("%s", rsp_buff);
+                printf("%s", rsp_buff);  // Print partial response (newline is already included)
             }
         }
     }
