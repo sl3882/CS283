@@ -1,4 +1,3 @@
-
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <arpa/inet.h>
@@ -16,40 +15,6 @@
 
 #include "dshlib.h"
 #include "rshlib.h"
-
-typedef struct
-{
-    int client_socket;
-    struct sockaddr_in client_addr;
-} client_args_t;
-
-
-
-void* client_handler(void* args) {
-    client_args_t* client_data = (client_args_t*)args;
-    int cli_socket = client_data->client_socket;
-    struct sockaddr_in client_addr = client_data->client_addr;
-    free(client_data);  // Free the dynamically allocated client data
-
-    printf("Client connected: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-    int result = exec_client_requests(cli_socket);
-    
-    close(cli_socket);
-
-    if (result == STOP_SERVER_SC) {
-        printf("%s", RCMD_MSG_SVR_STOP_REQ);
-    }
-
-    return NULL;
-}
-
-
-
-
-
-
-
-
 
 int start_server(char *ifaces, int port, int is_threaded)
 {
@@ -132,7 +97,7 @@ int boot_server(char *ifaces, int port)
     return svr_socket;
 }
 
-int process_cli_requests(int svr_socket,int is_threaded)
+int process_cli_requests(int svr_socket, int is_threaded)
 {
     int client_socket;
     struct sockaddr_in client_addr;
@@ -144,22 +109,37 @@ int process_cli_requests(int svr_socket,int is_threaded)
         client_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &client_addr_len);
         if (client_socket < 0)
         {
-
             perror("accept");
             continue;
         }
 
         printf("Client connected: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-        if (is_threaded) {
-            pthread_t thread_id;
-            client_args_t* client_data = malloc(sizeof(client_args_t));
-            client_data->client_socket = client_socket;
-            client_data->client_addr = client_addr;
-
-            pthread_create(&thread_id, NULL, client_handler, (void*)client_data);
-            pthread_detach(thread_id);  // Automatically clean up after the thread
-        } else {
+        if (is_threaded)
+        {
+            // If threaded mode is enabled, fork a new process to handle the client
+            pid_t pid = fork();
+            if (pid == 0)
+            {
+                // Child process handles the client
+                close(svr_socket); // Close server socket in child
+                exec_client_requests(client_socket);
+                close(client_socket);
+                exit(0); // Exit child process after handling client
+            }
+            else if (pid < 0)
+            {
+                perror("fork");
+                close(client_socket);
+            }
+            else
+            {
+                // Parent process closes the client socket
+                close(client_socket);
+            }
+        }
+        else
+        {
             // Handle client requests in the main thread
             exec_client_requests(client_socket);
             close(client_socket);
@@ -236,7 +216,6 @@ int send_message_eof(int cli_socket)
 
     if (send_len != 1)
     {
-
         return ERR_RDSH_COMMUNICATION;
     }
 
@@ -266,7 +245,7 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist)
     }
 
     int pipes[CMD_MAX - 1][2]; // For pipes between commands
-    pid_t pids[CMD_MAX];       // Process IDs for each command
+    pid_t pids[CMD_MAX];      // Process IDs for each command
 
     // Create pipes for each command in the pipeline
     for (int i = 0; i < clist->num - 1; i++)
