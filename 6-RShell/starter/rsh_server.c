@@ -1,5 +1,4 @@
 #include <sys/socket.h>
-#include <sys/wait.h>
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,25 +6,6 @@
 #include <unistd.h>
 #include "dshlib.h"
 #include "rshlib.h"
-
-int start_server(char *ifaces, int port, int is_threaded) {
-    int svr_socket;
-    int rc;
-
-    svr_socket = boot_server(ifaces, port);
-    if (svr_socket < 0) {
-        return svr_socket; // Error code from boot_server
-    }
-
-    rc = process_cli_requests(svr_socket);
-
-    stop_server(svr_socket);
-    return rc;
-}
-
-int stop_server(int svr_socket) {
-    return close(svr_socket);
-}
 
 int boot_server(char *ifaces, int port) {
     int svr_socket;
@@ -40,11 +20,16 @@ int boot_server(char *ifaces, int port) {
     int enable = 1;
     setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
 
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(ifaces);
     addr.sin_port = htons(port);
+    if (inet_pton(AF_INET, ifaces, &addr.sin_addr) <= 0) {
+        perror("inet_pton");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
 
-    if (bind(svr_socket, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+    if (bind(svr_socket, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         perror("bind");
         close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
@@ -56,88 +41,135 @@ int boot_server(char *ifaces, int port) {
         return ERR_RDSH_COMMUNICATION;
     }
 
-    printf("Server started on %s:%d\n", ifaces, port);
     return svr_socket;
 }
 
-int process_cli_requests(int svr_socket) {
-    int cli_socket;
-    struct sockaddr_in cli_addr;
-    socklen_t cli_len = sizeof(cli_addr);
-
-    while (1) {
-        cli_socket = accept(svr_socket, (struct sockaddr *)&cli_addr, &cli_len);
-        if (cli_socket == -1) {
-            perror("accept");
-            return ERR_RDSH_COMMUNICATION;
-        }
-
-        printf("Client connected\n");
-        int rc = exec_client_requests(cli_socket);
-        close(cli_socket);
-
-        if (rc < 0) { // Negative return means stop server
-            break;
-        }
-    }
-    return OK;
-}
-
-int exec_client_requests(int cli_socket) {
-    char *io_buff = malloc(RDSH_COMM_BUFF_SZ);
-    if (!io_buff) {
-        return ERR_RDSH_SERVER;
-    }
-
-    while (1) {
-        int recv_len = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
-        if (recv_len <= 0) { // Client disconnected or error
-            if (recv_len == 0) {
-                printf("Client disconnected\n");
-            } else {
-                perror("recv");
-            }
-            free(io_buff);
-            return OK; // Exit to accept next client
-        }
-
-        io_buff[recv_len] = '\0'; // Null terminate for safety
-        printf("Received: %s\n", io_buff);
-
-        // Echo back the input
-        int sent_len = send(cli_socket, io_buff, recv_len, 0);
-        if (sent_len != recv_len) {
-            perror("send");
-            free(io_buff);
-            return ERR_RDSH_COMMUNICATION;
-        }
-
-        // Send EOF character
-        if (send_message_eof(cli_socket) != OK) {
-            free(io_buff);
-            return ERR_RDSH_COMMUNICATION;
-        }
-    }
-
-    free(io_buff);
-    return OK;
+int stop_server(int svr_socket) {
+    return close(svr_socket);
 }
 
 int send_message_eof(int cli_socket) {
     int sent_len = send(cli_socket, &RDSH_EOF_CHAR, sizeof(RDSH_EOF_CHAR), 0);
     if (sent_len != sizeof(RDSH_EOF_CHAR)) {
-        perror("send EOF");
         return ERR_RDSH_COMMUNICATION;
     }
     return OK;
 }
 
 int send_message_string(int cli_socket, char *buff) {
-    int len = strlen(buff);
-    int sent_len = send(cli_socket, buff, len, 0);
-    if (sent_len != len) {
-        printf(CMD_ERR_RDSH_SEND, sent_len, len);
+    int send_len = strlen(buff);
+    int sent_len = send(cli_socket, buff, send_len, 0);
+    if (sent_len != send_len) {
+        printf(CMD_ERR_RDSH_SEND, sent_len, send_len);
         return ERR_RDSH_COMMUNICATION;
     }
     return send_message_eof(cli_socket);
+}
+
+int exec_client_requests(int cli_socket) {
+    char *io_buff = malloc(RDSH_COMM_BUFF_SZ);
+    if (io_buff == NULL) {
+        return ERR_RDSH_SERVER;
+    }
+
+    int rc = OK;
+    while (1) {
+        memset(io_buff, 0, RDSH_COMM_BUFF_SZ);
+        int io_size = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
+        
+        if (io_size <= 0) {
+            if (io_size == 0) {
+                rc = OK;  // Normal client disconnect
+            } else {
+                perror("recv");
+                rc = ERR_RDSH_COMMUNICATION;
+            }
+            break;
+        }
+
+        io_buff[io_size] = '\0';
+        printf("Received: %s\n", io_buff);
+
+        cmd_buff_t cmd_buff;
+        if (alloc_cmd_buff(&cmd_buff) != OK) {
+            send_message_string(cli_socket, "Memory allocation error");
+            continue;
+        }
+        if (build_cmd_buff(io_buff, &cmd_buff) != OK) {
+            send_message_string(cli_socket, "Invalid command");
+            free_cmd_buff(&cmd_buff);
+            continue;
+        }
+
+        if (strcmp(io_buff, "stop-server") == 0) {
+            send_message_string(cli_socket, "Shutting down server. Goodbye!");
+            free_cmd_buff(&cmd_buff);
+            rc = OK_EXIT;
+            break;
+        }
+
+        Built_In_Cmds bi_status = exec_built_in_cmd(&cmd_buff);
+        if (bi_status == BI_EXECUTED) {
+            send_message_string(cli_socket, "Command executed successfully");
+            free_cmd_buff(&cmd_buff);
+            continue;
+        } else if (bi_status == BI_CMD_EXIT) {
+            send_message_string(cli_socket, "Goodbye!");
+            free_cmd_buff(&cmd_buff);
+            rc = OK;
+            break;
+        }
+
+        if (bi_status == BI_NOT_BI) {
+            rc = exec_cmd(&cmd_buff);
+            char response[RDSH_COMM_BUFF_SZ];
+            snprintf(response, RDSH_COMM_BUFF_SZ, "Command returned: %d", rc);
+            send_message_string(cli_socket, response);
+        } else {
+            send_message_string(cli_socket, "Command not supported");
+        }
+
+        free_cmd_buff(&cmd_buff);
+    }
+
+    free(io_buff);
+    close(cli_socket);
+    return rc;
+}
+
+int process_cli_requests(int svr_socket) {
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    while (1) {
+        int cli_socket = accept(svr_socket, (struct sockaddr*)&client_addr, &client_len);
+        if (cli_socket < 0) {
+            perror("accept");
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        printf("Client connected\n");  // Added client connection message
+
+        int rc = exec_client_requests(cli_socket);
+        printf(RCMD_MSG_CLIENT_EXITED);
+
+        if (rc == OK_EXIT) {
+            printf(RCMD_MSG_SVR_STOP_REQ);
+            return rc;
+        }
+    }
+    return OK;
+}
+
+int start_server(char *ifaces, int port, int is_threaded) {  // is_threaded ignored
+    int svr_socket = boot_server(ifaces, port);
+    if (svr_socket < 0) {
+        return svr_socket;
+    }
+
+    printf("Server started on %s:%d\n", ifaces, port);  // Added server start message
+
+    int rc = process_cli_requests(svr_socket);
+    stop_server(svr_socket);
+    return rc;
 }
