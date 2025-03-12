@@ -13,108 +13,123 @@
 
 
 
-
 int exec_remote_cmd_loop(char *address, int port)
 {
+    char *cmd_buff;
+    char *rsp_buff;
     int cli_socket;
-    char *request_buff = NULL;
-    char *resp_buff = NULL;
-    char cmd_line[SH_CMD_MAX];
-    ssize_t recv_bytes;
+    ssize_t io_size;
     int is_eof;
 
     // Allocate buffers for sending and receiving data
-    request_buff = malloc(RDSH_COMM_BUFF_SZ);
-    if (request_buff == NULL) {
-        perror("Memory allocation failed for request buffer");
-        return ERR_MEMORY;
+    cmd_buff = (char *)malloc(RDSH_COMM_BUFF_SZ);
+    rsp_buff = (char *)malloc(RDSH_COMM_BUFF_SZ);
+    
+    if (cmd_buff == NULL || rsp_buff == NULL) {
+        return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_MEMORY);
     }
 
-    resp_buff = malloc(RDSH_COMM_BUFF_SZ);
-    if (resp_buff == NULL) {
-        perror("Memory allocation failed for response buffer");
-        free(request_buff);
-        return ERR_MEMORY;
-    }
-
-    // Create network connection to the server
+    // Connect to server
     cli_socket = start_client(address, port);
     if (cli_socket < 0) {
-        return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_CLIENT);
+        perror("start client");
+        return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_CLIENT);
     }
 
-    // Enter infinite command loop
     while (1) {
-        printf("%s", SH_PROMPT); // Print shell prompt
-
-        // Read command line from standard input
-        if (fgets(cmd_line, sizeof(cmd_line), stdin) == NULL) {
+        // Print prompt
+        printf("%s", SH_PROMPT);
+        
+        // Get user input
+        if (fgets(cmd_buff, RDSH_COMM_BUFF_SZ, stdin) == NULL) {
             printf("\n");
             break;
         }
-
+        
         // Remove newline character
-        cmd_line[strcspn(cmd_line, "\n")] = '\0';
-
-        // Check for empty command
-        if (strlen(cmd_line) == 0) {
-            printf("%s", CMD_WARN_NO_CMD);
+        size_t len = strlen(cmd_buff);
+        if (len > 0 && cmd_buff[len-1] == '\n') {
+            cmd_buff[len-1] = '\0';
+            len--;
+        }
+        
+        // Skip empty commands
+        if (len == 0) {
             continue;
         }
-
-        // Check for exit command
-        if (strcmp(cmd_line, EXIT_CMD) == 0) {
+        
+        // Check for local exit command
+        if (strcmp(cmd_buff, EXIT_CMD) == 0) {
+            // Send exit command to server
+            io_size = send(cli_socket, cmd_buff, len, 0);
+            if (io_size < 0) {
+                perror("send");
+                return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
+            }
+            
+            // Receive response (for proper shutdown)
+            while ((io_size = recv(cli_socket, rsp_buff, RDSH_COMM_BUFF_SZ - 1, 0)) > 0) {
+                // Check for EOF character
+                is_eof = (rsp_buff[io_size-1] == RDSH_EOF_CHAR) ? 1 : 0;
+                
+                // Print response (excluding EOF if present)
+                if (is_eof) {
+                    printf("%.*s", (int)io_size - 1, rsp_buff);
+                } else {
+                    printf("%.*s", (int)io_size, rsp_buff);
+                }
+                
+                if (is_eof) {
+                    break;
+                }
+            }
+            
+            // Exit the loop
             break;
         }
-
-        // Special handling for stop-server command
-        if (strcmp(cmd_line, "stop-server") == 0) {
-            // Send the command and expect a specific return status
-            int exec_status = STOP_SERVER_SC;
-            return client_cleanup(cli_socket, request_buff, resp_buff, exec_status);
+        
+        // Send command to server
+        io_size = send(cli_socket, cmd_buff, len, 0);
+        if (io_size < 0) {
+            perror("send");
+            return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
         }
-
-        // Send command to server (including null byte)
-        if (send(cli_socket, cmd_line, strlen(cmd_line) + 1, 0) < 0) {
-            perror("Error sending command to server");
-            return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_COMMUNICATION);
-        }
-
-        // Receive response loop
+        
+        // Receive response from server
         while (1) {
-            recv_bytes = recv(cli_socket, resp_buff, RDSH_COMM_BUFF_SZ - 1, 0);
-
-            if (recv_bytes < 0) {
-                // Communication error
-                perror("Error receiving response from server");
-                return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_COMMUNICATION);
+            memset(rsp_buff, 0, RDSH_COMM_BUFF_SZ);
+            io_size = recv(cli_socket, rsp_buff, RDSH_COMM_BUFF_SZ - 1, 0);
+            
+            if (io_size < 0) {
+                perror("recv");
+                return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
             }
-
-            if (recv_bytes == 0) {
-                // Server disconnected
+            
+            if (io_size == 0) {
+                // Server closed connection
                 printf("%s", RCMD_SERVER_EXITED);
-                return client_cleanup(cli_socket, request_buff, resp_buff, ERR_RDSH_CLIENT);
+                return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
             }
-
-            // Null-terminate the received buffer for safety
-            resp_buff[recv_bytes] = '\0';
-
-            // Print received data
-            printf("%.*s", (int)recv_bytes, resp_buff);
-
-            // Check if this is the last transmission
-            is_eof = (resp_buff[recv_bytes - 1] == RDSH_EOF_CHAR) ? 1 : 0;
-
+            
+            // Check for EOF character
+            is_eof = (rsp_buff[io_size-1] == RDSH_EOF_CHAR) ? 1 : 0;
+            
+            // Print response (excluding EOF if present)
             if (is_eof) {
-                break; // Exit receive loop
+                printf("%.*s", (int)io_size - 1, rsp_buff);
+            } else {
+                printf("%.*s", (int)io_size, rsp_buff);
+            }
+            
+            // If EOF received, break the receive loop
+            if (is_eof) {
+                break;
             }
         }
     }
 
-    // Clean up and exit
-    return client_cleanup(cli_socket, request_buff, resp_buff, OK);
+    return client_cleanup(cli_socket, cmd_buff, rsp_buff, OK);
 }
-
 int start_client(char *server_ip, int port)
 {
     int client_socket;
@@ -148,30 +163,7 @@ int start_client(char *server_ip, int port)
 
     return client_socket;
 }
-/*
- * client_cleanup(int cli_socket, char *cmd_buff, char *rsp_buff, int rc)
- *      cli_socket:   The client socket
- *      cmd_buff:     The buffer that will hold commands to send to server
- *      rsp_buff:     The buffer that will hld server responses
- * 
- *   This function does the following: 
- *      1. If cli_socket > 0 it calls close(cli_socket) to close the socket
- *      2. It calls free() on cmd_buff and rsp_buff
- *      3. It returns the value passed as rc
- *  
- *   Note this function is intended to be helper to manage exit conditions
- *   from the exec_remote_cmd_loop() function given there are several
- *   cleanup steps.  We provide it to you fully implemented as a helper.
- *   You do not have to use it if you want to develop an alternative
- *   strategy for cleaning things up in your exec_remote_cmd_loop()
- *   implementation. 
- * 
- *   returns:
- *          rc:   This function just returns the value passed as the 
- *                rc parameter back to the caller.  This way the caller
- *                can just write return client_cleanup(...)
- *      
- */
+
 int client_cleanup(int cli_socket, char *cmd_buff, char *rsp_buff, int rc){
     //If a valid socket number close it.
     if(cli_socket > 0){

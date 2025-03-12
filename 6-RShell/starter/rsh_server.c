@@ -18,42 +18,17 @@
 #include "rshlib.h"
 
 
-/*
- * start_server(ifaces, port, is_threaded)
- *      ifaces:  a string in ip address format, indicating the interface
- *              where the server will bind.  In almost all cases it will
- *              be the default "0.0.0.0" which binds to all interfaces.
- *              note the constant RDSH_DEF_SVR_INTFACE in rshlib.h
- * 
- *      port:   The port the server will use.  Note the constant 
- *              RDSH_DEF_PORT which is 1234 in rshlib.h.  If you are using
- *              tux you may need to change this to your own default, or even
- *              better use the command line override -s implemented in dsh_cli.c
- *              For example ./dsh -s 0.0.0.0:5678 where 5678 is the new port  
- * 
- *      is_threded:  Used for extra credit to indicate the server should implement
- *                   per thread connections for clients  
- * 
- *      This function basically runs the server by: 
- *          1. Booting up the server
- *          2. Processing client requests until the client requests the
- *             server to stop by running the `stop-server` command
- *          3. Stopping the server. 
- * 
- *      This function is fully implemented for you and should not require
- *      any changes for basic functionality.  
- * 
- *      IF YOU IMPLEMENT THE MULTI-THREADED SERVER FOR EXTRA CREDIT YOU NEED
- *      TO DO SOMETHING WITH THE is_threaded ARGUMENT HOWEVER.  
- */
+typedef struct {
+    int client_socket;
+} client_args_t;
+
+
+
 int start_server(char *ifaces, int port, int is_threaded){
     int svr_socket;
     int rc;
 
-    //
-    //TODO:  If you are implementing the extra credit, please add logic
-    //       to keep track of is_threaded to handle this feature
-    //
+ 
 
     svr_socket = boot_server(ifaces, port);
     if (svr_socket < 0){
@@ -69,140 +44,65 @@ int start_server(char *ifaces, int port, int is_threaded){
     return rc;
 }
 
-/*
- * stop_server(svr_socket)
- *      svr_socket: The socket that was created in the boot_server()
- *                  function. 
- * 
- *      This function simply returns the value of close() when closing
- *      the socket.  
- */
+
 int stop_server(int svr_socket){
     return close(svr_socket);
 }
 
-/*
- * boot_server(ifaces, port)
- *      ifaces & port:  see start_server for description.  They are passed
- *                      as is to this function.   
- * 
- *      This function "boots" the rsh server.  It is responsible for all
- *      socket operations prior to accepting client connections.  Specifically: 
- * 
- *      1. Create the server socket using the socket() function. 
- *      2. Calling bind to "bind" the server to the interface and port
- *      3. Calling listen to get the server ready to listen for connections.
- * 
- *      after creating the socket and prior to calling bind you might want to 
- *      include the following code:
- * 
- *      int enable=1;
- *      setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
- * 
- *      when doing development you often run into issues where you hold onto
- *      the port and then need to wait for linux to detect this issue and free
- *      the port up.  The code above tells linux to force allowing this process
- *      to use the specified port making your life a lot easier.
- * 
- *  Returns:
- * 
- *      server_socket:  Sockets are just file descriptors, if this function is
- *                      successful, it returns the server socket descriptor, 
- *                      which is just an integer.
- * 
- *      ERR_RDSH_COMMUNICATION:  This error code is returned if the socket(),
- *                               bind(), or listen() call fails. 
- * 
- */
-int boot_server(char *ifaces, int port) {
-    int svr_socket;
-    struct sockaddr_in server_addr;
 
-    // Create a server socket
+int boot_server(char *ifaces, int port){
+    int svr_socket;
+    int ret;
+    
+    struct sockaddr_in addr;
+    
+    // Create the server socket
     svr_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (svr_socket < 0) {
-        perror("Error creating socket");
+    if (svr_socket == -1) {
+        perror("socket");
         return ERR_RDSH_COMMUNICATION;
     }
-
-    // Enable socket reuse to avoid "Address already in use" errors during development
+    
+    // Set socket option to reuse address
     int enable = 1;
     if (setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-        perror("Error setting socket option");
+        perror("setsockopt");
         close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
     }
-
-    // Prepare the server address structure
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-
-    // Convert the interface string to network address
-    if (inet_pton(AF_INET, ifaces, &server_addr.sin_addr) <= 0) {
-        perror("Invalid interface address");
+    
+    // Set up the address structure
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    
+    // Convert IP address from string to binary form
+    if (inet_pton(AF_INET, ifaces, &addr.sin_addr) <= 0) {
+        perror("inet_pton");
         close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
     }
-
-    // Bind the socket to the specified interface and port
-    if (bind(svr_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Error binding socket");
+    
+    // Bind the socket to the address and port
+    ret = bind(svr_socket, (struct sockaddr *)&addr, sizeof(addr));
+    if (ret == -1) {
+        perror("bind");
         close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
     }
-
-    // Start listening for connections, with a backlog queue of 5
-    if (listen(svr_socket, 5) < 0) {
-        perror("Error listening on socket");
+    
+    // Listen for incoming connections with a backlog of 20
+    ret = listen(svr_socket, 20);
+    if (ret == -1) {
+        perror("listen");
         close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
     }
-
+    
     return svr_socket;
 }
 
-/*
- * process_cli_requests(svr_socket)
- *      svr_socket:  The server socket that was obtained from boot_server()
- *   
- *  This function handles managing client connections.  It does this using
- *  the following logic
- * 
- *      1.  Starts a while(1) loop:
- *  
- *          a. Calls accept() to wait for a client connection. Recall that 
- *             the accept() function returns another socket specifically
- *             bound to a client connection. 
- *          b. Calls exec_client_requests() to handle executing commands
- *             sent by the client. It will use the socket returned from
- *             accept().
- *          c. Loops back to the top (step 2) to accept connecting another
- *             client.  
- * 
- *          note that the exec_client_requests() return code should be
- *          negative if the client requested the server to stop by sending
- *          the `stop-server` command.  If this is the case step 2b breaks
- *          out of the while(1) loop. 
- * 
- *      2.  After we exit the loop, we need to cleanup.  Dont forget to 
- *          free the buffer you allocated in step #1.  Then call stop_server()
- *          to close the server socket. 
- * 
- *  Returns:
- * 
- *      OK_EXIT:  When the client sends the `stop-server` command this function
- *                should return OK_EXIT. 
- * 
- *      ERR_RDSH_COMMUNICATION:  This error code terminates the loop and is
- *                returned from this function in the case of the accept() 
- *                function failing. 
- * 
- *      OTHERS:   See exec_client_requests() for return codes.  Note that positive
- *                values will keep the loop running to accept additional client
- *                connections, and negative values terminate the server. 
- * 
- */
+
 int process_cli_requests(int svr_socket) {
     int cli_socket;
     struct sockaddr_in client_addr;
