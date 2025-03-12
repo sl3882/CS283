@@ -35,6 +35,7 @@ static const char RDSH_EOF_CHAR = 0x04;
 #define ERR_RDSH_CLIENT         -52     //General client errors
 #define ERR_RDSH_CMD_EXEC       -53     //RSH command execution errors
 #define WARN_RDSH_NOT_IMPL      -99     //Not Implemented yet warning
+#define INVALID_CMD -1
 
 //Output message constants for server
 #define CMD_ERR_RDSH_COMM   "rdsh-error: communications error\n"

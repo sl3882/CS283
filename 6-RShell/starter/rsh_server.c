@@ -138,92 +138,7 @@ int process_cli_requests(int svr_socket) {
     return OK;
 }
 
-// int exec_client_requests(int cli_socket) {
-//     char *io_buff = malloc(RDSH_COMM_BUFF_SZ);
-//     if (io_buff == NULL) {
-//         perror("Memory allocation failed");
-//         return ERR_RDSH_COMMUNICATION;
-//     }
 
-//     while (1) {
-//         // Clear the buffer
-//         memset(io_buff, 0, RDSH_COMM_BUFF_SZ);
-
-//         // Receive command from client
-//         ssize_t bytes_received = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
-        
-//         if (bytes_received <= 0) {
-//             // Connection closed or error
-//             free(io_buff);
-//             return ERR_RDSH_COMMUNICATION;
-//         }
-
-//         // Ensure null-termination
-//         io_buff[bytes_received] = '\0';
-
-//         // Create command buffer to parse the received command
-//         cmd_buff_t cmd_buff;
-//         if (alloc_cmd_buff(&cmd_buff) != OK) {
-//             send_message_string(cli_socket, "Memory allocation error\n");
-//             continue;
-//         }
-
-//         // Build command buffer
-//         if (build_cmd_buff(io_buff, &cmd_buff) != OK) {
-//             send_message_string(cli_socket, "Invalid command\n");
-//             free_cmd_buff(&cmd_buff);
-//             continue;
-//         }
-
-//         // Check for stop-server command
-//         if (strcmp(cmd_buff.argv[0], "stop-server") == 0) {
-//             send_message_string(cli_socket, buffer);
-//             free_cmd_buff(&cmd_buff);
-//             free(io_buff);
-//             return STOP_SERVER_SC;
-//         }
-
-//         // Check for exit command
-//         if (strcmp(cmd_buff.argv[0], "exit") == 0) {
-//             free_cmd_buff(&cmd_buff);
-//             send_message_eof(cli_socket);
-//             break;
-//         }
-
-//         // Execute command
-//         pid_t pid = fork();
-//         if (pid < 0) {
-//             send_message_string(cli_socket, "Fork failed\n");
-//             free_cmd_buff(&cmd_buff);
-//             continue;
-//         }
-//         else if (pid == 0) {
-//             // Child process
-//             dup2(cli_socket, STDOUT_FILENO);
-//             dup2(cli_socket, STDERR_FILENO);
-//             close(cli_socket);
-
-//             if (execvp(cmd_buff.argv[0], cmd_buff.argv) < 0) {
-//                 perror("Exec failed");
-//                 exit(ERR_EXEC_CMD);
-//             }
-//         }
-//         else {
-//             // Parent process
-//             int status;
-//             waitpid(pid, &status, 0);
-            
-//             // Send EOF to indicate command completion
-//             send_message_eof(cli_socket);
-//         }
-
-//         send_message_string(cli_socket, io_buff);
-
-//     }
-
-//     free(io_buff);
-//     return OK;
-// }
 
 int exec_client_requests(int cli_socket) {
     char * io_buff = malloc(RDSH_COMM_BUFF_SZ);
@@ -282,9 +197,9 @@ int exec_client_requests(int cli_socket) {
 
 int send_message_eof(int cli_socket) {
     int send_len = (int)sizeof(RDSH_EOF_CHAR);
-    bytes_sent = send(cli_socket, &RDSH_EOF_CHAR, 1, 0);
+    send_len = send(cli_socket, &RDSH_EOF_CHAR, 1, 0);
     
-    if (bytes_sent != 1) {
+    if (send_len != 1) {
         
         return ERR_RDSH_COMMUNICATION;
     }
@@ -370,13 +285,13 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
             dup2(cli_sock, STDERR_FILENO);
             
             // Check if it's a built-in command
-            bi_cmd = check_built_in(clist->cmds[i].argv[0]);
+            bi_cmd = check_built_in(clist->cmd[i].argv[0]);
             if (bi_cmd != INVALID_CMD) {
-                exit(execute_built_in(bi_cmd, clist->cmds[i].argv));
+                exit(execute_built_in(bi_cmd, clist->cmd[i].argv));
             }
             
             // Execute the command
-            execvp(clist->cmds[i].argv[0], clist->cmds[i].argv);
+            execvp(clist->cmd[i].argv[0], clist->cmd[i].argv);
             
             // If execvp returns, it means an error occurred
             perror("execvp");
