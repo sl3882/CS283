@@ -148,7 +148,9 @@ int process_cli_requests(int svr_socket) {
             return ERR_RDSH_COMMUNICATION;
         }
 
-        printf("Client connected\n");  // Added client connection message
+        char client_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
+        printf("Client connected from %s:%d\n", client_ip, ntohs(client_addr.sin_port));
 
         int rc = exec_client_requests(cli_socket);
         printf(RCMD_MSG_CLIENT_EXITED);
@@ -161,15 +163,25 @@ int process_cli_requests(int svr_socket) {
     return OK;
 }
 
-int start_server(char *ifaces, int port, int is_threaded) {  // is_threaded ignored
-    int svr_socket = boot_server(ifaces, port);
-    if (svr_socket < 0) {
-        return svr_socket;
+int start_server(char *ifaces, int port, int is_threaded){
+    int svr_socket;
+    int rc;
+
+    //
+    //TODO:  If you are implementing the extra credit, please add logic
+    //       to keep track of is_threaded to handle this feature
+    //
+
+    svr_socket = boot_server(ifaces, port);
+    if (svr_socket < 0){
+        int err_code = svr_socket;  //server socket will carry error code
+        return err_code;
     }
 
-    printf("Server started on %s:%d\n", ifaces, port);  // Added server start message
+    rc = process_cli_requests(svr_socket);
 
-    int rc = process_cli_requests(svr_socket);
     stop_server(svr_socket);
+
+
     return rc;
 }
