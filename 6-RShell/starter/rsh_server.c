@@ -23,6 +23,34 @@ typedef struct
     struct sockaddr_in client_addr;
 } client_args_t;
 
+
+
+void* client_handler(void* args) {
+    client_args_t* client_data = (client_args_t*)args;
+    int cli_socket = client_data->client_socket;
+    struct sockaddr_in client_addr = client_data->client_addr;
+    free(client_data);  // Free the dynamically allocated client data
+
+    printf("Client connected: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+    int result = exec_client_requests(cli_socket);
+    
+    close(cli_socket);
+
+    if (result == STOP_SERVER_SC) {
+        printf("%s", RCMD_MSG_SVR_STOP_REQ);
+    }
+
+    return NULL;
+}
+
+
+
+
+
+
+
+
+
 int start_server(char *ifaces, int port, int is_threaded)
 {
     int svr_socket;
