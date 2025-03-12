@@ -17,7 +17,7 @@ int exec_remote_cmd_loop(char *address, int port)
 {
     char *cmd_buff;
     char *rsp_buff;
-    int cli_socket;
+    int cli_socket = -1;
     ssize_t io_size;
     int is_eof;
 
