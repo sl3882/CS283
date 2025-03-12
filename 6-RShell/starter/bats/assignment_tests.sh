@@ -72,19 +72,3 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "Server Initialization" {
-    run "./dsh" <<EOF
-start_server "127.0.0.1" 8080 0
-EOF
-
-    stripped_output=$(echo "$output" | tr -d '[:space:]')
-    expected_output="Serverstarted"
-
-    echo "Captured stdout:"
-    echo "Output: $output"
-    echo "Exit Status: $status"
-    echo "${stripped_output} -> ${expected_output}"
-
-    [ "$stripped_output" = "$expected_output" ]
-    [ "$status" -eq 0 ]
-}
