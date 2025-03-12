@@ -221,17 +221,19 @@ int send_message_string(int cli_socket, char *buff) {
     return send_message_eof(cli_socket);
 }
 
+
 int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
-    int pipes[clist->num - 1][2];
+    int pipes[clist->num - 1][2];  // Array of pipes
     pid_t pids[clist->num];
-    int pids_st[clist->num];
+    int  pids_st[clist->num];         // Array to store process IDs
     Built_In_Cmds bi_cmd;
     int exit_code;
 
+    // Create all necessary pipes
     for (int i = 0; i < clist->num - 1; i++) {
         if (pipe(pipes[i]) == -1) {
             perror("pipe");
-            return ERR_RDSH_COMMUNICATION;
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -239,142 +241,63 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
         pids[i] = fork();
         if (pids[i] == -1) {
             perror("fork");
-            return ERR_RDSH_COMMUNICATION;
+            exit(EXIT_FAILURE);
         }
-
-        if (pids[i] == 0) { // Child process
-            // Check if it's a built-in command
-            bi_cmd = match_command(clist->commands[i].argv[0]);
-            if (bi_cmd != BI_NOT_BI) {
-                // Redirect stdout and stderr to client socket
-                dup2(cli_sock, STDOUT_FILENO);
-                dup2(cli_sock, STDERR_FILENO);
-                exit(exec_built_in_cmd(&clist->commands[i]));
-            }
-
+        
+        if (pids[i] == 0) {  // Child process
             // First command in pipeline
             if (i == 0) {
+                // Read from client socket
                 dup2(cli_sock, STDIN_FILENO);
+                
+                // If there are more commands, set up pipe for output
                 if (clist->num > 1) {
                     dup2(pipes[0][1], STDOUT_FILENO);
                 } else {
+                    // If only one command, output goes back to client socket
                     dup2(cli_sock, STDOUT_FILENO);
                 }
-            } else if (i == clist->num - 1) {
-                dup2(pipes[i - 1][0], STDIN_FILENO);
+            }
+            // Last command in pipeline
+            else if (i == clist->num - 1) {
+                // Read from previous pipe
+                dup2(pipes[i-1][0], STDIN_FILENO);
+                
+                // Write to client socket
                 dup2(cli_sock, STDOUT_FILENO);
-            } else {
-                dup2(pipes[i - 1][0], STDIN_FILENO);
+            }
+            // Middle commands in pipeline
+            else {
+                // Read from previous pipe
+                dup2(pipes[i-1][0], STDIN_FILENO);
+                
+                // Write to next pipe
                 dup2(pipes[i][1], STDOUT_FILENO);
             }
-
+            
+            // Close all pipe ends in child process
             for (int j = 0; j < clist->num - 1; j++) {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
-
+            
+            // Also redirect stderr to client socket
             dup2(cli_sock, STDERR_FILENO);
+            
+            // Check if it's a built-in command
+            bi_cmd = check_built_in(clist->commands[i].argv[0]);
+            if (bi_cmd ) {
+                exit(execute_built_in(bi_cmd, clist->commands[i].argv));
+            }
+            
+            // Execute the command
             execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            
+            // If execvp returns, it means an error occurred
             perror("execvp");
             exit(EXIT_FAILURE);
         }
     }
-
-    for (int i = 0; i < clist->num - 1; i++) {
-        close(pipes[i][0]);
-        close(pipes[i][1]);
-    }
-
-    for (int i = 0; i < clist->num; i++) {
-        waitpid(pids[i], &pids_st[i], 0);
-    }
-
-    exit_code = WEXITSTATUS(pids_st[clist->num - 1]);
-
-    for (int i = 0; i < clist->num; i++) {
-        if (WEXITSTATUS(pids_st[i]) == EXIT_SC) {
-            exit_code = EXIT_SC;
-        }
-    }
-
-    return exit_code;
-}
-// int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
-//     int pipes[clist->num - 1][2];  // Array of pipes
-//     pid_t pids[clist->num];
-//     int  pids_st[clist->num];         // Array to store process IDs
-//     Built_In_Cmds bi_cmd;
-//     int exit_code;
-
-//     // Create all necessary pipes
-//     for (int i = 0; i < clist->num - 1; i++) {
-//         if (pipe(pipes[i]) == -1) {
-//             perror("pipe");
-//             exit(EXIT_FAILURE);
-//         }
-//     }
-
-//     for (int i = 0; i < clist->num; i++) {
-//         pids[i] = fork();
-//         if (pids[i] == -1) {
-//             perror("fork");
-//             exit(EXIT_FAILURE);
-//         }
-        
-//         if (pids[i] == 0) {  // Child process
-//             // First command in pipeline
-//             if (i == 0) {
-//                 // Read from client socket
-//                 dup2(cli_sock, STDIN_FILENO);
-                
-//                 // If there are more commands, set up pipe for output
-//                 if (clist->num > 1) {
-//                     dup2(pipes[0][1], STDOUT_FILENO);
-//                 } else {
-//                     // If only one command, output goes back to client socket
-//                     dup2(cli_sock, STDOUT_FILENO);
-//                 }
-//             }
-//             // Last command in pipeline
-//             else if (i == clist->num - 1) {
-//                 // Read from previous pipe
-//                 dup2(pipes[i-1][0], STDIN_FILENO);
-                
-//                 // Write to client socket
-//                 dup2(cli_sock, STDOUT_FILENO);
-//             }
-//             // Middle commands in pipeline
-//             else {
-//                 // Read from previous pipe
-//                 dup2(pipes[i-1][0], STDIN_FILENO);
-                
-//                 // Write to next pipe
-//                 dup2(pipes[i][1], STDOUT_FILENO);
-//             }
-            
-//             // Close all pipe ends in child process
-//             for (int j = 0; j < clist->num - 1; j++) {
-//                 close(pipes[j][0]);
-//                 close(pipes[j][1]);
-//             }
-            
-//             // Also redirect stderr to client socket
-//             dup2(cli_sock, STDERR_FILENO);
-            
-//             // Check if it's a built-in command
-//             bi_cmd = check_built_in(clist->commands[i].argv[0]);
-//             if (bi_cmd ) {
-//                 exit(execute_built_in(bi_cmd, clist->commands[i].argv));
-//             }
-            
-//             // Execute the command
-//             execvp(clist->commands[i].argv[0], clist->commands[i].argv);
-            
-//             // If execvp returns, it means an error occurred
-//             perror("execvp");
-//             exit(EXIT_FAILURE);
-//         }
-//     }
     
     // Parent process: close all pipe ends
     for (int i = 0; i < clist->num - 1; i++) {
