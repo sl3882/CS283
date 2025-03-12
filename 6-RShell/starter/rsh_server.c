@@ -144,9 +144,11 @@ int exec_client_requests(int cli_socket) {
     }
 
     free(io_buff);
-    close(cli_socket);
+    close(cli_socket);  // Close the client socket
     return rc;
 }
+
+
 
 int process_cli_requests(int svr_socket) {
     struct sockaddr_in client_addr;
@@ -168,12 +170,12 @@ int process_cli_requests(int svr_socket) {
 
         if (rc == OK_EXIT) {
             printf(RCMD_MSG_SVR_STOP_REQ);
-            return rc;
+            close(cli_socket);  // Close the client socket
+            return rc;  // Return to shut down the server
         }
     }
     return OK;
 }
-
 int start_server(char *ifaces, int port, int is_threaded){
     int svr_socket;
     int rc;
