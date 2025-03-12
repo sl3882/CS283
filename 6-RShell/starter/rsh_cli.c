@@ -130,40 +130,34 @@ int exec_remote_cmd_loop(char *address, int port)
 
     return client_cleanup(cli_socket, cmd_buff, rsp_buff, OK);
 }
-int start_client(char *server_ip, int port)
-{
-    int client_socket;
-    struct sockaddr_in server_addr;
 
-    // Create socket
-    client_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_socket < 0) {
-        perror("Error creating socket");
-        return ERR_RDSH_CLIENT;
+int start_client(char *server_ip, int port) {
+    int cli_socket = 0;
+    struct sockaddr_in serv_addr;
+    
+    // Create socket file descriptor
+    if ((cli_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("Socket creation error\n");
+        return -1;
     }
-
-    // Set up server address structure
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-
-    // Convert IP address from string to network format
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
-        perror("Invalid IP address");
-        close(client_socket);
-        return ERR_RDSH_CLIENT;
+    
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+    
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
+        printf("Invalid address/ Address not supported\n");
+        return -1;
     }
-
+    
     // Connect to server
-    if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Error connecting to server");
-        close(client_socket);
-        return ERR_RDSH_CLIENT;
+    if (connect(cli_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("Connection Failed\n");
+        return -1;
     }
-
-    return client_socket;
+    
+    return cli_socket;
 }
-
 int client_cleanup(int cli_socket, char *cmd_buff, char *rsp_buff, int rc){
     //If a valid socket number close it.
     if(cli_socket > 0){
