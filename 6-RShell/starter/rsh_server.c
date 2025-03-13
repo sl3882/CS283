@@ -71,7 +71,7 @@ int send_message_string(int cli_socket, char *buff) {
 
     // Append a newline character to the response.
     char response[RDSH_COMM_BUFF_SZ];
-    snprintf(response, RDSH_COMM_BUFF_SZ, "%s\n", buff);
+    snprintf(response, RDSH_COMM_BUFF_SZ, "%s", buff);
 
     // Send the response to the client.
     int send_len = strlen(response);
@@ -129,11 +129,11 @@ int exec_client_requests(int cli_socket) {
 
         Built_In_Cmds bi_status = exec_built_in_cmd(&cmd_buff); // Execute built-in command.
         if (bi_status == BI_EXECUTED) {
-            send_message_string(cli_socket, "Command executed successfully");
+            send_message_string(cli_socket, "Command executed successfully\n");
             free_cmd_buff(&cmd_buff);
             continue; // Go to the next iteration.
         } else if (bi_status == BI_CMD_EXIT) {
-            send_message_string(cli_socket, "Goodbye!");
+            send_message_string(cli_socket, "Goodbye!/n");
             free_cmd_buff(&cmd_buff);
             rc = OK; // Indicate client exit.
             break; // Exit the loop.
@@ -142,13 +142,14 @@ int exec_client_requests(int cli_socket) {
         if (bi_status == BI_NOT_BI) {
             rc = exec_cmd(&cmd_buff); // Execute external command.
             char response[RDSH_COMM_BUFF_SZ];
-            snprintf(response, RDSH_COMM_BUFF_SZ, "Command returned: %d", rc);
+            snprintf(response, RDSH_COMM_BUFF_SZ, "Command returned: %d\n", rc);
             send_message_string(cli_socket, response);
+
+            
         } else {
             send_message_string(cli_socket, "Command not supported");
         }
 
-        free_cmd_buff(&cmd_buff); // Free command buffer.
     }
 
     free(io_buff); // Free I/O buffer.
